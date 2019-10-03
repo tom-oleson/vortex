@@ -56,7 +56,7 @@ $(EXE): $(OBJS)
 
 clean:
 	-@rm -rf *.o $(EXE) core.*
-	@echo "$(EXE) $(EXE2) $(@)ed"
+	@echo "$(EXE) $(@)ed"
 
 all: clean prod
 
