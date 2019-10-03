@@ -8,16 +8,14 @@ R"(        /    \)""\n"
 R"(   ____/   __ \)""\n"  
 R"(  /    \__/   /  VORTEX)""\n"
 R"( /  \__/  \__/   Rotational Data Cache)""\n"
-R"( \     \__/  \   Copyright (C) 2019, Tom Oleson)""\n"
-R"(  \____/  \   \  All Rights Reserved.)""\n"
+R"( \     \__/  \   Copyright (C) 2019, Tom Oleson, All Rights Reserved.)""\n"
+R"(  \____/  \   \)""\n"
 R"(       \  /   /)""\n"
 R"(        \____/)""\n";
-
 
 int main(int argc, char *argv[]) {
 
     puts(__banner__);
-    vortex::init_logs();
 
     int opt;
     int port = 56000;
@@ -40,6 +38,8 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    vortex::init_logs();
+    cm_log::always(cm_util::format("VORTEX %s build: %s %s", VERSION ,__DATE__,__TIME__));
     cm_log::info(cm_util::format("Listening on port: %d", port));
 
     return 0;

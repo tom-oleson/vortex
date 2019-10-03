@@ -44,7 +44,7 @@ CC=g++
 CM_LIB_DIR=../../../common
 INCLUDE = -I. -I$(CM_LIB_DIR)/include
 LDFLAGS = -m64 -g -lcm_64 -ldl -pthread -L$(CM_LIB_DIR)/lib
-CCFLAGS = -m64 -g $(INCLUDE) -c -fPIC -D__LINUX_BOX__ -D_REENTRANT -D_LARGEFILE64_SOURCE
+CCFLAGS = -m64 -g $(INCLUDE) -c -fPIC -D__LINUX_BOX__ -D_REENTRANT -D_LARGEFILE64_SOURCE -DVERSION=\"$(CM_VERSION)\"
 
 POSIXFLAGS = -D_POSIX_PTHREAD_SEMANTICS -D_REENTRANT
 
@@ -61,6 +61,6 @@ clean:
 all: clean prod
 
 prod: $(EXE)
-	#export LD_LIBRARY_PATH=$(CM_LIB_DIR)/lib:$(LD_LIBRARY_PATH);$(PWD)/$(EXE)
+	export LD_LIBRARY_PATH=$(CM_LIB_DIR)/lib:$(LD_LIBRARY_PATH);$(PWD)/$(EXE)
 
 
