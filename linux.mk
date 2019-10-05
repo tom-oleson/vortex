@@ -35,9 +35,11 @@ TOP=$(PWD)
 EXE = vortex
 
 OBJS = \
-    main.o \
-    logger.o
-
+	main.o \
+	storage.o \
+	server.o \
+	logger.o
+    
 default: all
 
 CC=g++
@@ -62,5 +64,3 @@ all: clean prod
 
 prod: $(EXE)
 	export LD_LIBRARY_PATH=$(CM_LIB_DIR)/lib:$(LD_LIBRARY_PATH);$(PWD)/$(EXE)
-
-

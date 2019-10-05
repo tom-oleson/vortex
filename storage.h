@@ -27,15 +27,16 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __LOGGER_H
-#define __LOGGER_H
+#ifndef __STORAGE_H
+#define __STORAGE_H
 
 #include "log.h"
+#include "cache.h"
 
 namespace vortex {
 
-void init_logs();
+void init_storage();
 
 }
 
-#endif  // __LOGGER_H
+#endif  // __STORAGE_H

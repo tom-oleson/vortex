@@ -27,15 +27,44 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __LOGGER_H
-#define __LOGGER_H
+#include "server.h"
 
-#include "log.h"
 
-namespace vortex {
+void request_handler(void *arg) {
 
-void init_logs();
+    cm_net::input_event *event = (cm_net::input_event *) arg;
+    std::string request = std::move(event->msg);
+    int socket = event->fd;
 
+    cm_log::info(cm_util::format("%d: received request:", socket));
+    cm_log::hex_dump(cm_log::level::info, request.c_str(), request.size(), 16);
+
+    std::string response("OK\n");
+    
+    
+    cm_net::send(socket, response);
 }
 
-#endif  // __LOGGER_H
+void request_dealloc(void *arg) {
+    delete (cm_net::input_event *) arg;
+}
+
+void vortex::run(int port) {
+
+
+    // create thread pool that will do work for the server
+    cm_thread::pool thread_pool(6);
+
+    // startup tcp server
+    cm_net::pool_server server(port, &thread_pool, request_handler,
+        request_dealloc);
+
+    while(1) {
+        timespec delay = {0, 100000000};   // 100 ms
+        nanosleep(&delay, NULL);
+    }
+
+    // wait for pool_server threads to complete all work tasks
+    thread_pool.wait_all();
+
+}
