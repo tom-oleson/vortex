@@ -31,21 +31,32 @@
 
 cm_log::multiplex_logger mx_log;
 cm_log::rolling_file_logger
-    app_log("./log/", "vortex", ".log", ((24 * 60) * 60) /*seconds*/, 6 /* retain # */);
+    app_log("./log/", "vortex", ".log", ((24 * 60) * 60) /*seconds*/, 3 /* retain # */);
 
-void vortex::init_logs() {
+cm_log::rolling_file_logger
+    journal("./journal/", "data", ".log", ((24 * 60) * 60) /*seconds*/, 3 /* retain # */);
 
-    cm_log::console.set_log_level(cm_log::level::trace);
+
+void vortex::init_logs(cm_log::level::en lvl) {
+
+    cm_log::console.set_log_level(lvl);
     cm_log::console.set_date_time_format("%m/%d/%Y %H:%M:%S");
     cm_log::console.set_message_format("${date_time} [${lvl}]: ${msg}");
 
-    app_log.set_log_level(cm_log::level::trace);
+    app_log.set_log_level(lvl);
     app_log.set_date_time_format("%m/%d/%Y %H:%M:%S");
     app_log.set_message_format("${date_time}${millis} [${lvl}] <${thread}>: ${msg}"); 
 
-    mx_log.set_log_level(cm_log::level::trace);
+    mx_log.set_log_level(lvl);
     mx_log.add(cm_log::console);
     mx_log.add(app_log);
 
     set_default_logger(&mx_log);
+
+    // setup journal log
+    journal.set_log_level(cm_log::level::trace);
+    journal.set_date_time_format("%s");
+    journal.set_message_format("${date_time}${millis} ${msg}");
+    journal.set_RS(""); // do not append '\n'
+
 }

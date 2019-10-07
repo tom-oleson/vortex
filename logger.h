@@ -34,7 +34,7 @@
 
 namespace vortex {
 
-void init_logs();
+void init_logs(cm_log::level::en lvl);
 
 }
 

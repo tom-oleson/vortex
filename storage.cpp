@@ -29,60 +29,7 @@
 
 #include "storage.h"
 
-class vortex_processor: public cm_cache::scanner_processor {
-
-public:
-    bool do_add(const std::string &name, const std::string &value) {
-        cm_log::info(cm_util::format("+%s %s", name.c_str(), value.c_str()));
-
-        cm_store::mem_store.set(name, value);
-        return true;
-    }
-
-    bool do_read(const std::string &name) {
-        cm_log::info(cm_util::format("$%s", name.c_str()));
-
-        std::string value = cm_store::mem_store.find(name);
-        if(value.size() > 0) {
-            cm_log::info(cm_util::format("%s", value.c_str()));
-        }
-        else {
-            cm_log::info("NF");
-        }
-        return true;
-    }
-
-    bool do_remove(const std::string &name) {
-        cm_log::info(cm_util::format("-%s", name.c_str()));
-
-        int num = cm_store::mem_store.remove(name);
-        cm_log::info(cm_util::format("(%d)", num));
-        return true;
-    }
-
-    bool do_watch(const std::string &name, const std::string &tag) {
-        cm_log::info(cm_util::format("*%s #%s", name.c_str(), tag.c_str()));
-
-        std::string value = cm_store::mem_store.find(name);
-        cm_log::info(cm_util::format("%s:%s", tag.c_str(), value.c_str()));
-        return true;
-    }
-
-    bool do_error(const std::string &expr, const std::string &err) {
-        cm_log::error(cm_util::format("error: %s", err.c_str(), expr.c_str()));
-        return false;
-    }
-};
-
-vortex_processor processor;
-cm_cache::cache cache(&processor);
 
 void vortex::init_storage() {
-
-    // cache.eval("+foo 'bar'");   // add
-    // cache.eval("$foo");         // read
-    // cache.eval("*foo #0");      // watch
-    // cache.eval("-foo");         // remove
-    // cache.eval("$foo");         // read
 
 }

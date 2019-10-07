@@ -33,6 +33,7 @@
 #include "log.h"
 #include "network.h"
 #include "storage.h"
+#include "cache.h"
 
 namespace vortex {
 

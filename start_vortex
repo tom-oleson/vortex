@@ -1,3 +1,4 @@
 #!/bin/sh
 export LD_LIBRARY_PATH=../../../common/lib
-./vortex -p 54000
+./vortex -p 56000 -l 0
+
