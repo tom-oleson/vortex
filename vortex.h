@@ -44,8 +44,6 @@
 
 namespace vortex {
 
-
-
 }
 
 #endif  // __VORTEX_H

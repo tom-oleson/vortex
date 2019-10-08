@@ -32,6 +32,8 @@
 
 #include "log.h"
 #include "cache.h"
+#include "util.h"
+
 
 namespace vortex {
 

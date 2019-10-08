@@ -73,7 +73,11 @@ public:
 
     bool do_result(const std::string &result) {
         cm_log::info(cm_util::format("%s", result.c_str()));
-        return false;
+        return true;
+    }
+
+    bool do_input(const std::string &in_str, std::string &expr) {
+        return true;
     }
 
     bool do_error(const std::string &expr, const std::string &err, std::string &result) {
@@ -90,7 +94,7 @@ void request_handler(void *arg) {
     std::string request = std::move(event->msg);
     int socket = event->fd;
 
-    // write request to journal log
+    // write all add/remove requests to journal log
     const char op = request[0];
     if(op == '+' || op == '-') {
         journal.info(request);

@@ -33,9 +33,11 @@ cm_log::multiplex_logger mx_log;
 cm_log::rolling_file_logger
     app_log("./log/", "vortex", ".log", ((24 * 60) * 60) /*seconds*/, 3 /* retain # */);
 
-cm_log::rolling_file_logger
-    journal("./journal/", "data", ".log", ((24 * 60) * 60) /*seconds*/, 3 /* retain # */);
+//cm_log::rolling_file_logger
+//    journal("./journal/", "data", ".log", ((24 * 60) * 60) /*seconds*/, 3 /* retain # */);
 
+cm_log::rolling_file_logger
+    journal("./journal/", "data", ".log", (1 * 60) /*seconds*/, 3 /* retain # */);
 
 void vortex::init_logs(cm_log::level::en lvl) {
 
