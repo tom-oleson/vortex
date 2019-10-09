@@ -48,18 +48,20 @@ int main(int argc, char *argv[]) {
     puts(__banner__);
 
     int opt;
-    int port = 56000;
+    int port = 54000;
     int log_lvl = (cm_log::level::en) cm_log::level::info;
-    bool verbose = false;
+    bool version = false;
+    int interval = 0;
+    int keep = 0;
 
-    while((opt = getopt(argc, argv, "hl:p:v")) != -1) {
+    while((opt = getopt(argc, argv, "hl:p:s:v")) != -1) {
         switch(opt) {
             case 'p':
                 port = atoi(optarg);
                 break;
 
             case 'v':
-                verbose = true;
+                version = true;
                 break;
 
             case 'l':
@@ -68,12 +70,12 @@ int main(int argc, char *argv[]) {
 
             case 'h':
             default:
-                printf("usage: %s [-p port] [-l level] [-v]\n", argv[0]);
+                printf("usage: %s [-p<port>] [-l<level>] [-i<interval>] [-k<keep>] [-v]\n", argv[0]);
                 exit(0);
         }
     }
 
-    vortex::init_logs((cm_log::level::en) log_lvl);
+    vortex::init_logs((cm_log::level::en) log_lvl, interval, keep);
     cm_log::always(cm_util::format("VORTEX %s build: %s %s", VERSION ,__DATE__,__TIME__));
     
     vortex::init_storage();

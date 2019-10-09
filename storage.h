@@ -33,11 +33,16 @@
 #include "log.h"
 #include "cache.h"
 #include "util.h"
+#include "logger.h"
 
 
 namespace vortex {
 
 void init_storage();
+void rotate_storage();
+
+
+extern cm_store::info_store<std::string,std::string> rotate_store;
 
 }
 

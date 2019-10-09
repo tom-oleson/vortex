@@ -31,10 +31,24 @@
 #define __LOGGER_H
 
 #include "log.h"
+#include "storage.h"
 
 namespace vortex {
 
-void init_logs(cm_log::level::en lvl);
+class journal_logger: public cm_log::rolling_file_logger {
+
+public:
+    journal_logger(const std::string _dir, const std::string _base_name,
+             const std::string _ext, time_t _interval, int _keep = 0): 
+        cm_log::rolling_file_logger(_dir, _base_name, _ext, _interval, _keep) { }
+    
+    ~journal_logger() { }
+
+    void rotate();
+};
+
+
+void init_logs(cm_log::level::en lvl, int interval, int keep);
 
 }
 

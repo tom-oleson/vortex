@@ -29,7 +29,7 @@
 
 #include "server.h"
 
-extern cm_log::rolling_file_logger journal;
+extern vortex::journal_logger journal;
 
 class vortex_processor: public cm_cache::scanner_processor {
 
