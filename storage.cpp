@@ -34,47 +34,49 @@ extern vortex::journal_logger journal;
 class journal_processor: public cm_cache::scanner_processor {
 
 public:
-    bool do_add(const std::string &name, const std::string &value, std::string &result) {
+    bool do_add(const std::string &name, const std::string &value, cm_cache::cache_event &event) {
         cm_store::mem_store.set(name, value);
         return true;
     }
 
-    bool do_read(const std::string &name, std::string &result) {
+    bool do_read(const std::string &name, cm_cache::cache_event &event) {
         return true;
     }
 
-    bool do_remove(const std::string &name, std::string &result) {
+    bool do_remove(const std::string &name, cm_cache::cache_event &event) {
         int num = cm_store::mem_store.remove(name);
         return true;
     }
 
-    bool do_watch(const std::string &name, const std::string &tag, std::string &result) {
+    bool do_watch(const std::string &name, const std::string &tag, cm_cache::cache_event &event) {
         return true;
     }
 
-    bool do_result(const std::string &result) {
+    bool do_result(cm_cache::cache_event &event) {
         return true;
     }
 
-    bool do_input(const std::string &in_str, std::string &expr) {
+    bool do_input(const std::string &in_str, cm_cache::cache_event &event) { 
+    
         //cm_log::info(cm_util::format("%s", in_str.c_str()));
         if(in_str.size() > 2) {
             // seek space between timestamp and expr
             int pos = in_str.find(" ");
             if(pos > 1) {
-                expr.assign( in_str.substr(pos + 1) );
+                event.request.assign( in_str.substr(pos + 1) );
                 return true;
             }
             else {
                 // raw input line with no timestamp
-                expr.assign(in_str);
+                event.request.assign(in_str);
             }
         }
         return true;
     }
 
-    bool do_error(const std::string &expr, const std::string &err, std::string &result) {
-        cm_log::error(result.assign(cm_util::format("error: %s", err.c_str(), expr.c_str())));
+    bool do_error(const std::string &expr, const std::string &err, cm_cache::cache_event &event) {
+        event.result.assign(cm_util::format("error: %s", err.c_str(), expr.c_str()));
+        cm_log::error(event.result);
         return false;
     }
 };
@@ -113,47 +115,49 @@ cm_store::info_store<std::string,std::string> vortex::rotate_store;
 class rotate_processor: public cm_cache::scanner_processor {
 
 public:
-    bool do_add(const std::string &name, const std::string &value, std::string &result) {
+    bool do_add(const std::string &name, const std::string &value, cm_cache::cache_event &event) {
         vortex::rotate_store.set(name, value);
         return true;
     }
 
-    bool do_read(const std::string &name, std::string &result) {
+    bool do_read(const std::string &name, cm_cache::cache_event &event) {
         return true;
     }
 
-    bool do_remove(const std::string &name, std::string &result) {
+    bool do_remove(const std::string &name, cm_cache::cache_event &event) {
         int num = vortex::rotate_store.remove(name);
         return true;
     }
 
-    bool do_watch(const std::string &name, const std::string &tag, std::string &result) {
+    bool do_watch(const std::string &name, const std::string &tag, cm_cache::cache_event &event) {
         return true;
     }
 
-    bool do_result(const std::string &result) {
+    bool do_result(cm_cache::cache_event &event) {
         return true;
     }
 
-    bool do_input(const std::string &in_str, std::string &expr) {
+    bool do_input(const std::string &in_str, cm_cache::cache_event &event) { 
+    
         //cm_log::info(cm_util::format("%s", in_str.c_str()));
         if(in_str.size() > 2) {
             // seek space between timestamp and expr
             int pos = in_str.find(" ");
             if(pos > 1) {
-                expr.assign( in_str.substr(pos + 1) );
+                event.request.assign( in_str.substr(pos + 1) );
                 return true;
             }
             else {
                 // raw input line with no timestamp
-                expr.assign(in_str);
+                event.request.assign(in_str);
             }
         }
         return true;
     }
 
-    bool do_error(const std::string &expr, const std::string &err, std::string &result) {
-        cm_log::error(result.assign(cm_util::format("error: %s", err.c_str(), expr.c_str())));
+    bool do_error(const std::string &expr, const std::string &err, cm_cache::cache_event &event) {
+        event.result.assign(cm_util::format("error: %s", err.c_str(), expr.c_str()));
+        cm_log::error(event.result);
         return false;
     }
 };

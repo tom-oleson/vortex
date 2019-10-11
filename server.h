@@ -30,12 +30,62 @@
 #ifndef __SERVER_H
 #define __SERVER_H
 
+#include <unordered_map>
+#include <vector>
+
 #include "log.h"
 #include "network.h"
 #include "storage.h"
 #include "cache.h"
 
+
 namespace vortex {
+
+
+template<class keyT, class valueT>
+class watcher_store: protected cm::mutex {
+
+protected:
+    // unordered map for faster access vs. map using buckets
+    std::unordered_map<keyT,valueT> _map;
+
+public:
+
+    bool check(const keyT &name) {
+        lock();
+        bool b = _map.find(name) != _map.end();
+        unlock();
+        return b;
+    }
+
+    bool set(const keyT &name, const valueT &value) {
+        lock();
+        _map[name] = value;
+        unlock();
+        return true;
+    }
+    
+    size_t remove(const keyT &name) {
+        lock();
+        size_t num_erased = _map.erase(name);
+        unlock();
+        return num_erased;   
+    }
+
+    size_t size() {
+        lock();
+        size_t size = _map.size();
+        unlock();
+        return size;
+    }
+
+    void clear() {
+        lock();
+        _map.clear();
+        unlock();
+    }
+};
+
 
 void run(int port);
 
