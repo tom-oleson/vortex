@@ -232,7 +232,6 @@ void request_handler(void *arg) {
 
     // if this in an EOF event (client disconnected)
     if(eof) {
-        //cm_log::info(cm_util::format("%d: EOF event", socket));
         // remove socket from all watchers
         int num = watchers.remove(socket);
         if(num > 0) {
