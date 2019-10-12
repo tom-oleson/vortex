@@ -186,8 +186,7 @@ void vortex::rotate_storage() {
     }
 
     journal.lock();
-
-    cm_store::mem_store.clear();    
+    cm_store::mem_store.clear(); 
     cm_store::mem_store.swap(vortex::rotate_store);
     vortex::rotate_store.clear();
     
