@@ -161,6 +161,8 @@ public:
         event.result.assign("OK");
         do_result(event);
 
+        journal.info(event.request);
+
         return true;
     }
 
@@ -188,6 +190,9 @@ public:
         int num = cm_store::mem_store.remove(name);
         event.result.assign(cm_util::format("(%d)", num));
         do_result(event);
+
+        journal.info(event.request);
+
         return true;
     }
 
@@ -198,9 +203,11 @@ public:
         event.value = cm_store::mem_store.find(name);
         event.name = name;
         event.tag = tag;
-        event.result.assign(cm_util::format("%s:%s", tag.c_str(), event.value.c_str()));
 
         watchers.add(name, watcher(event.fd, tag));
+
+        event.result.assign(cm_util::format("%s:%s", tag.c_str(), event.value.c_str()));
+        do_result(event);
 
         return true;
     }
@@ -238,12 +245,6 @@ void request_handler(void *arg) {
             cm_log::info(cm_util::format("%d: socket removed from %d watcher(s)", socket, num));
         }
         return;
-    }
-
-    // write all add/remove requests to journal log
-    const char op = request[0];
-    if(op == '+' || op == '-') {
-        journal.info(request);
     }
 
     cm_log::info(cm_util::format("%d: received request:", socket));
