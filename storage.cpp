@@ -178,14 +178,14 @@ void vortex::rotate_storage() {
         std::sort(matches.begin(), matches.end());
     }
 
-    journal.lock();
-
     int count = 0;
     for(auto name : matches) {
         std::string path = "./journal/" + name;
         count = cache.load(path);
         cm_log::info(cm_util::format("rotate: %s: %d", name.c_str(), count ));
     }
+
+    journal.lock();
 
     cm_store::mem_store.clear();    
     cm_store::mem_store.swap(vortex::rotate_store);

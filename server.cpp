@@ -153,6 +153,9 @@ public:
 
         cm_log::info(cm_util::format("+%s %s", name.c_str(), value.c_str()));
 
+        // journal first to guard rotation
+        journal.info(event.request);
+
         cm_store::mem_store.set(name, value);
 
         event.name.assign(name);
@@ -161,8 +164,6 @@ public:
         event.result.assign("OK");
         do_result(event);
 
-        journal.info(event.request);
-
         return true;
     }
 
@@ -170,7 +171,9 @@ public:
     
         cm_log::info(cm_util::format("$%s", name.c_str()));
 
+        journal.lock();  // guard rotationn
         event.value = cm_store::mem_store.find(name);
+        journal.unlock();
 
         event.name.assign(name);
         if(event.value.size() > 0) {
@@ -187,11 +190,12 @@ public:
     
         cm_log::info(cm_util::format("-%s", name.c_str()));
 
+        // journal first to guard rotation
+        journal.info(event.request);
+
         int num = cm_store::mem_store.remove(name);
         event.result.assign(cm_util::format("(%d)", num));
         do_result(event);
-
-        journal.info(event.request);
 
         return true;
     }
@@ -200,7 +204,10 @@ public:
 
         cm_log::info(cm_util::format("*%s #%s", name.c_str(), tag.c_str()));
 
+        journal.lock();     // guard rotationn
         event.value = cm_store::mem_store.find(name);
+        journal.unlock();
+
         event.name = name;
         event.tag = tag;
 
