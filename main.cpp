@@ -54,7 +54,7 @@ int main(int argc, char *argv[]) {
     int interval = 0;
     int keep = 0;
 
-    while((opt = getopt(argc, argv, "hl:p:s:v")) != -1) {
+    while((opt = getopt(argc, argv, "hl:p:i:k:v")) != -1) {
         switch(opt) {
             case 'p':
                 port = atoi(optarg);
@@ -67,6 +67,14 @@ int main(int argc, char *argv[]) {
             case 'l':
                 log_lvl = atoi(optarg);
                 break;
+
+            case 'i':
+                interval = atoi(optarg);
+                break;
+
+            case 'k':
+                keep = atoi(optarg);
+                break;                
 
             case 'h':
             default:
