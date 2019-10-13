@@ -244,8 +244,13 @@ void request_handler(void *arg) {
     int socket = event->fd;
     bool eof = event->eof;
 
+    // new connection event (not input)
+    if(event->connect) {
+        return;        
+    }
+
     // if this in an EOF event (client disconnected)
-    if(eof) {
+    if(event->eof) {
         // remove socket from all watchers
         int num = watchers.remove(socket);
         if(num > 0) {
@@ -253,6 +258,7 @@ void request_handler(void *arg) {
         }
         return;
     }
+
 
     cm_log::info(cm_util::format("%d: received request:", socket));
     cm_log::hex_dump(cm_log::level::info, request.c_str(), request.size(), 16);
