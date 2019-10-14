@@ -84,8 +84,6 @@ public:
         size_t num_erased = 0;
         lock();
 
-        cm_log::info(cm_util::format("watchers.remove(%d)", fd));
-
         for(auto i = _map.begin(); i != _map.end();) {
 
             std::vector<watcher> &v = i->second;
