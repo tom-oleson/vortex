@@ -263,16 +263,26 @@ void request_handler(void *arg) {
 
     cm_cache::cache cache(&processor);
     cm_cache::cache_event req_event;
-    
+
+
+    std::stringstream ss(request);
+    std::string item;
+
     req_event.fd = socket;
-    req_event.request.assign(request);
-
-    cache.eval(request, req_event);
+    while (std::getline (ss, item, '\n')) {
     
-    cm_net::send(socket, req_event.result.append("\n"));
+        item.append("\n");
+        req_event.request.assign(item);
+        cache.eval(item, req_event);
+        
+        if(req_event.result.size() > 0) {
+            cm_net::send(socket, req_event.result.append("\n"));
+        }
 
-    if(req_event.notify) {
-        watchers.notify(req_event.name, req_event.value);
+        if(req_event.notify) {
+            watchers.notify(req_event.name, req_event.value);
+        }
+
     }
 }
 
