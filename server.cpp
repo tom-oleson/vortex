@@ -31,7 +31,6 @@
 
 extern vortex::journal_logger journal;
 
-
 struct watcher {
     int fd = -1;         // notify socket
     std::string tag;
@@ -140,9 +139,7 @@ public:
     }
 };
 
-
 watcher_store watchers;
-
 
 class vortex_processor: public cm_cache::scanner_processor {
 
@@ -159,7 +156,7 @@ public:
         event.name.assign(name);
         event.value.assign(value);
         event.notify = true;
-        event.result.assign("OK");
+        event.result.assign(cm_util::format("OK:%s", name.c_str()));
         do_result(event);
 
         return true;
@@ -175,10 +172,10 @@ public:
 
         event.name.assign(name);
         if(event.value.size() > 0) {
-            event.result.assign(cm_util::format("%s", event.value.c_str()));
+            event.result.assign(cm_util::format("%s:%s", name.c_str(), event.value.c_str()));
         }
         else {
-            event.result.assign("NF");
+            event.result.assign(cm_util::format("NF:%s", name.c_str()));
         }
         do_result(event);
         return true;
@@ -192,7 +189,7 @@ public:
         journal.info(event.request);
 
         int num = cm_store::mem_store.remove(name);
-        event.result.assign(cm_util::format("(%d)", num));
+        event.result.assign(cm_util::format("(%d):%s", num, name.c_str()));
         do_result(event);
 
         return true;
@@ -227,7 +224,7 @@ public:
     }
 
     bool do_error(const std::string &expr, const std::string &err, cm_cache::cache_event &event) {
-        event.result.assign(cm_util::format("error: %s", err.c_str(), expr.c_str()));
+        event.result.assign(cm_util::format("error: %s: %s", err.c_str(), expr.c_str()));
         cm_log::error(event.result);
         return false;
     }
@@ -256,7 +253,6 @@ void request_handler(void *arg) {
         }
         return;
     }
-
 
     cm_log::info(cm_util::format("%d: received request:", socket));
     cm_log::hex_dump(cm_log::level::info, request.c_str(), request.size(), 16);
@@ -306,5 +302,4 @@ void vortex::run(int port) {
 
     // wait for pool_server threads to complete all work tasks
     thread_pool.wait_all();
-
 }

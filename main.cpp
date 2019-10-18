@@ -38,7 +38,7 @@ R"(  / ____/   __ \ \)""\n"
 R"( / /    \__/   / / VORTEX)""\n"
 R"(/ /  \__/  \__/ /  Rotational Data Cache)""\n"
 R"(\ \     \__/  \ \  Copyright (C) 2019, Tom Oleson, All Rights Reserved.)""\n"
-R"( \ \____/  \   \ \)""\n"
+R"( \ \____/  \   \ \ Made in the U.S.A.)""\n"
 R"(  \____ \  /   / /)""\n"
 R"(       \ \____/ /)""\n"
 R"(        \______/)""\n";

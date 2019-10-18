@@ -65,7 +65,6 @@ void vortex::init_logs(cm_log::level::en lvl, int interval, int keep) {
     if(0 <= keep && keep <= 364) {
         journal.set_keep(keep);    
     }
-
 }
 
 
