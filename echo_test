@@ -1,5 +1,0 @@
-#!/bin/bash
-
-echo $'+msg \"Hello, world!\"' | nc -N tom-latitude 56010
-echo $'$msg' | nc -N tom-latitude 56010
-echo $'-msg' | nc -N tom-latitude 56010

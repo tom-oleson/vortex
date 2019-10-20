@@ -6,7 +6,7 @@
  / /    \__/   / / VORTEX
 / /  \__/  \__/ /  Rotational Data Cache
 \ \     \__/  \ \  Copyright (C) 2019, Tom Oleson, All Rights Reserved.
- \ \____/  \   \ \
+ \ \____/  \   \ \ Made in the U.S.A.
   \____ \  /   / /
        \ \____/ /
         \______/
