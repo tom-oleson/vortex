@@ -33,8 +33,10 @@ operations:
 
 +key-token{SP}value-token   (create/update)
 $key-token                  (read)
+!key-token                  (read then delete)
 -key-token                  (delete)
 *key-token{SP}#tag-token    (watch: receive change notifications)
+@key-token{SP}#tag-token    (watch: delete after change notification)
 
 examples:
 
