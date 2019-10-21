@@ -34,16 +34,19 @@ extern vortex::journal_logger journal;
 struct watcher {
     int fd = -1;         // notify socket
     std::string tag;
+    bool remove = false;
 
     watcher() {}
     ~watcher() {}
     
-    watcher(const int fd_, const std::string tag_): fd(fd_), tag(tag_) {}
-    watcher(const watcher &r): fd(r.fd), tag(r.tag) {}
+    watcher(const int fd_, const std::string tag_, bool remove_):
+     fd(fd_), tag(tag_), remove(remove_) {}
+    watcher(const watcher &r): fd(r.fd), tag(r.tag), remove(r.remove) {}
     
     watcher &operator = (const watcher &r) {
         fd = r.fd;
         tag = r.tag;
+        remove = r.remove;
         return *this;
     }
 };
@@ -113,16 +116,21 @@ public:
         return num_erased;   
     }
 
-    void notify(const std::string &name, const std::string &value) {
+    bool notify(const std::string &name, const std::string &value) {
         lock();
+        bool do_remove = false;
         if(_map.find(name) != _map.end()) {
             std::vector<watcher> &v = _map[name];
             for(auto &_watcher: v) {
                 cm_net::send(_watcher.fd,
-                cm_util::format("%s:%s\n", _watcher.tag.c_str(), value.c_str()));               
+                cm_util::format("%s:%s\n", _watcher.tag.c_str(), value.c_str()));
+                if(_watcher.remove) { 
+                    do_remove = true;
+                }
             }
         }
         unlock();
+        return do_remove;
     }
 
     size_t size() {
@@ -157,9 +165,7 @@ public:
         event.value.assign(value);
         event.notify = true;
         event.result.assign(cm_util::format("OK:%s", name.c_str()));
-        do_result(event);
-
-        return true;
+        return do_result(event);
     }
 
     bool do_read(const std::string &name, cm_cache::cache_event &event) {
@@ -177,8 +183,28 @@ public:
         else {
             event.result.assign(cm_util::format("NF:%s", name.c_str()));
         }
-        do_result(event);
-        return true;
+        return do_result(event);
+    }
+
+    bool do_read_remove(const std::string &name, cm_cache::cache_event &event) {
+    
+        cm_log::info(cm_util::format("!%s", name.c_str()));
+
+        journal.lock();  // guard rotationn
+        event.value = cm_store::mem_store.find(name);
+        journal.unlock();
+
+        event.name.assign(name);
+        if(event.value.size() > 0) {
+            event.result.assign(cm_util::format("%s:%s", name.c_str(), event.value.c_str()));
+
+            journal.info(event.request);
+            int num = cm_store::mem_store.remove(name);
+        }
+        else {
+            event.result.assign(cm_util::format("NF:%s", name.c_str()));
+        }
+        return do_result(event);
     }
 
     bool do_remove(const std::string &name, cm_cache::cache_event &event) {
@@ -190,9 +216,7 @@ public:
 
         int num = cm_store::mem_store.remove(name);
         event.result.assign(cm_util::format("(%d):%s", num, name.c_str()));
-        do_result(event);
-
-        return true;
+        return do_result(event);
     }
 
     bool do_watch(const std::string &name, const std::string &tag, cm_cache::cache_event &event) {
@@ -206,12 +230,27 @@ public:
         event.name = name;
         event.tag = tag;
 
-        watchers.add(name, watcher(event.fd, tag));
+        watchers.add(name, watcher(event.fd, tag, false /*remove*/));
 
         event.result.assign(cm_util::format("%s:%s", tag.c_str(), event.value.c_str()));
-        do_result(event);
+        return do_result(event);
+    }
 
-        return true;
+    bool do_watch_remove(const std::string &name, const std::string &tag, cm_cache::cache_event &event) {
+
+        cm_log::info(cm_util::format("@%s #%s", name.c_str(), tag.c_str()));
+
+        journal.lock();     // guard rotationn
+        event.value = cm_store::mem_store.find(name);
+        journal.unlock();
+
+        event.name = name;
+        event.tag = tag;
+
+        watchers.add(name, watcher(event.fd, tag, true /*remove*/));
+
+        event.result.assign(cm_util::format("%s:%s", tag.c_str(), event.value.c_str()));
+        return do_result(event);
     }
 
     bool do_result(cm_cache::cache_event &event) {
@@ -276,9 +315,11 @@ void request_handler(void *arg) {
         }
 
         if(req_event.notify) {
-            watchers.notify(req_event.name, req_event.value);
+            if(watchers.notify(req_event.name, req_event.value)) {
+                cm_store::mem_store.remove(req_event.name);
+                cm_log::info(cm_util::format("removed on notify: %s", req_event.name.c_str()));
+            }
         }
-
     }
 }
 

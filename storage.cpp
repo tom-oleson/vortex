@@ -43,12 +43,22 @@ public:
         return true;
     }
 
+    bool do_read_remove(const std::string &name, cm_cache::cache_event &event) {
+        int num = cm_store::mem_store.remove(name);
+        return true;
+    }
+
     bool do_remove(const std::string &name, cm_cache::cache_event &event) {
         int num = cm_store::mem_store.remove(name);
         return true;
     }
 
     bool do_watch(const std::string &name, const std::string &tag, cm_cache::cache_event &event) {
+        return true;
+    }
+
+    bool do_watch_remove(const std::string &name, const std::string &tag, cm_cache::cache_event &event) {
+        int num = cm_store::mem_store.remove(name);
         return true;
     }
 
@@ -124,12 +134,22 @@ public:
         return true;
     }
 
+    bool do_read_remove(const std::string &name, cm_cache::cache_event &event) {
+        int num = cm_store::mem_store.remove(name);
+        return true;
+    }
+
     bool do_remove(const std::string &name, cm_cache::cache_event &event) {
         int num = vortex::rotate_store.remove(name);
         return true;
     }
 
     bool do_watch(const std::string &name, const std::string &tag, cm_cache::cache_event &event) {
+        return true;
+    }
+
+    bool do_watch_remove(const std::string &name, const std::string &tag, cm_cache::cache_event &event) {
+        int num = cm_store::mem_store.remove(name);
         return true;
     }
 
