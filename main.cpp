@@ -30,6 +30,7 @@
 #include <unistd.h>     // for getopt()
 #include "vortex.h"
 
+
 const char *__banner__ =
 R"(         ______)""\n"
 R"(        / ____ \)""\n"
@@ -49,7 +50,7 @@ int main(int argc, char *argv[]) {
 
     int opt;
     int port = 54000;
-    int log_lvl = (cm_log::level::en) cm_log::level::info;
+    int log_lvl = (cm_log::level::en) cm_log::level::trace;
     bool version = false;
     int interval = 0;
     int keep = 0;

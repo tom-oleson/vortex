@@ -105,7 +105,7 @@ public:
             if(v.size() == 0) {
                 std::string name = std::move(i->first);    
                 i = _map.erase(i);
-                cm_log::info(cm_util::format("removed key: [%s] (no more watchers)", name.c_str()));
+                CM_LOG_TRACE { cm_log::info(cm_util::format("removed key: [%s] (no more watchers)", name.c_str())); }
             }
             else {
                 i++;
@@ -154,7 +154,7 @@ class vortex_processor: public cm_cache::scanner_processor {
 public:
     bool do_add(const std::string &name, const std::string &value, cm_cache::cache_event &event) {
 
-        cm_log::info(cm_util::format("+%s %s", name.c_str(), value.c_str()));
+        //cm_log::info(cm_util::format("+%s %s", name.c_str(), value.c_str()));
 
         // journal first to guard rotation
         journal.info(event.request);
@@ -170,9 +170,9 @@ public:
 
     bool do_read(const std::string &name, cm_cache::cache_event &event) {
     
-        cm_log::info(cm_util::format("$%s", name.c_str()));
+        //cm_log::info(cm_util::format("$%s", name.c_str()));
 
-        journal.lock();  // guard rotationn
+        journal.lock();  // guard rotation
         event.value = cm_store::mem_store.find(name);
         journal.unlock();
 
@@ -188,9 +188,9 @@ public:
 
     bool do_read_remove(const std::string &name, cm_cache::cache_event &event) {
     
-        cm_log::info(cm_util::format("!%s", name.c_str()));
+        //cm_log::info(cm_util::format("!%s", name.c_str()));
 
-        journal.lock();  // guard rotationn
+        journal.lock();  // guard rotation
         event.value = cm_store::mem_store.find(name);
         journal.unlock();
 
@@ -209,7 +209,7 @@ public:
 
     bool do_remove(const std::string &name, cm_cache::cache_event &event) {
     
-        cm_log::info(cm_util::format("-%s", name.c_str()));
+        //cm_log::info(cm_util::format("-%s", name.c_str()));
 
         // journal first to guard rotation
         journal.info(event.request);
@@ -221,7 +221,7 @@ public:
 
     bool do_watch(const std::string &name, const std::string &tag, cm_cache::cache_event &event) {
 
-        cm_log::info(cm_util::format("*%s #%s", name.c_str(), tag.c_str()));
+        //cm_log::info(cm_util::format("*%s #%s", name.c_str(), tag.c_str()));
 
         journal.lock();     // guard rotationn
         event.value = cm_store::mem_store.find(name);
@@ -238,7 +238,7 @@ public:
 
     bool do_watch_remove(const std::string &name, const std::string &tag, cm_cache::cache_event &event) {
 
-        cm_log::info(cm_util::format("@%s #%s", name.c_str(), tag.c_str()));
+        //cm_log::info(cm_util::format("@%s #%s", name.c_str(), tag.c_str()));
 
         journal.lock();     // guard rotationn
         event.value = cm_store::mem_store.find(name);
@@ -254,7 +254,20 @@ public:
     }
 
     bool do_result(cm_cache::cache_event &event) {
-        cm_log::info(cm_util::format("%s", event.result.c_str()));
+        cm_net::send(event.fd, event.result.append("\n"));
+
+        CM_LOG_TRACE {
+            cm_log::info(cm_util::format("%d: sent response:", event.fd));
+            cm_log::hex_dump(cm_log::level::info, event.result.c_str(), event.result.size(), 16);
+        }
+
+        if(event.notify) {
+            if(watchers.notify(event.name, event.value)) {
+                cm_store::mem_store.remove(event.name);
+                CM_LOG_TRACE { cm_log::info(cm_util::format("removed on notify: %s", event.name.c_str())); }
+            }
+        }
+
         return true;
     }
 
@@ -288,38 +301,28 @@ void request_handler(void *arg) {
         // remove socket from all watchers
         int num = watchers.remove(socket);
         if(num > 0) {
-            cm_log::info(cm_util::format("%d: socket removed from %d watcher(s)", socket, num));
+            CM_LOG_TRACE { cm_log::info(cm_util::format("%d: socket removed from %d watcher(s)", socket, num)); }
         }
         return;
     }
 
-    cm_log::info(cm_util::format("%d: received request:", socket));
-    cm_log::hex_dump(cm_log::level::info, request.c_str(), request.size(), 16);
+    CM_LOG_TRACE {
+        cm_log::trace(cm_util::format("%d: received request:", socket));
+        cm_log::hex_dump(cm_log::level::trace, request.c_str(), request.size(), 16);
+    }
 
     cm_cache::cache cache(&processor);
     cm_cache::cache_event req_event;
-
 
     std::stringstream ss(request);
     std::string item;
 
     req_event.fd = socket;
     while (std::getline (ss, item, '\n')) {
-    
+
         item.append("\n");
         req_event.request.assign(item);
         cache.eval(item, req_event);
-        
-        if(req_event.result.size() > 0) {
-            cm_net::send(socket, req_event.result.append("\n"));
-        }
-
-        if(req_event.notify) {
-            if(watchers.notify(req_event.name, req_event.value)) {
-                cm_store::mem_store.remove(req_event.name);
-                cm_log::info(cm_util::format("removed on notify: %s", req_event.name.c_str()));
-            }
-        }
     }
 }
 
