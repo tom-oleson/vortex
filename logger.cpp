@@ -67,7 +67,6 @@ void vortex::init_logs(cm_log::level::en lvl, int interval, int keep) {
     }
 }
 
-
 void vortex::journal_logger::rotate() {
 
     // do normal log rotation
