@@ -257,14 +257,14 @@ public:
         cm_net::send(event.fd, event.result.append("\n"));
 
         CM_LOG_TRACE {
-            cm_log::info(cm_util::format("%d: sent response:", event.fd));
-            cm_log::hex_dump(cm_log::level::info, event.result.c_str(), event.result.size(), 16);
+            cm_log::trace(cm_util::format("%d: sent response:", event.fd));
+            cm_log::hex_dump(cm_log::level::trace, event.result.c_str(), event.result.size(), 16);
         }
 
         if(event.notify) {
             if(watchers.notify(event.name, event.value)) {
                 cm_store::mem_store.remove(event.name);
-                CM_LOG_TRACE { cm_log::info(cm_util::format("removed on notify: %s", event.name.c_str())); }
+                CM_LOG_TRACE { cm_log::trace(cm_util::format("removed on notify: %s", event.name.c_str())); }
             }
         }
 
