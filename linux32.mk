@@ -54,7 +54,11 @@ POSIXFLAGS = -D_POSIX_PTHREAD_SEMANTICS -D_REENTRANT
 %.o: %.cpp
 	$(CC) $(CCFLAGS) $(POSIXFLAGS) $<
 
-$(EXE): $(OBJS)
+log:
+	-@mkdir log
+	-@mkdir journal
+
+$(EXE): $(OBJS) log
 	$(CC) $(OBJS) $(LDFLAGS) -o $(EXE)
 
 clean:
