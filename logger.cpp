@@ -41,6 +41,7 @@ void vortex::init_logs(cm_log::level::en lvl, int interval, int keep) {
     cm_log::console.set_log_level(lvl);
     cm_log::console.set_date_time_format("%m/%d/%Y %H:%M:%S");
     cm_log::console.set_message_format("${date_time} [${lvl}]: ${msg}");
+    cm_log::console.set_color_enable(true);
 
     app_log.set_log_level(lvl);
     app_log.set_date_time_format("%m/%d/%Y %H:%M:%S");
