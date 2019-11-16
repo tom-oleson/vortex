@@ -67,6 +67,23 @@ public:
         return b;
     }
 
+    bool check(const std::string &name, const watcher &w) {
+        lock();
+        std::vector<watcher> &v = _map[name];
+ 
+        // scan for matching watcher
+        bool found = false;
+        for(auto it = v.begin(); it != v.end(); it++) {
+            if(it->fd == w.fd && it->tag == w.tag && it->remove == w.remove) {
+                found = true;
+                break;
+            }
+        }       
+        unlock();
+        return found;
+    }
+
+
     bool add(const std::string &name, const watcher &w) {
         lock();
         std::vector<watcher> &v = _map[name];
@@ -230,7 +247,14 @@ public:
         event.name = name;
         event.tag = tag;
 
-        watchers.add(name, watcher(event.fd, tag, false /*remove*/));
+        watcher w(event.fd, event.tag, false /*remove*/);
+        if(watchers.check(name, w) == false) {
+            watchers.add(name, w);
+        }
+        else {
+            CM_LOG_TRACE { cm_log::trace(cm_util::format("watch already active: *%s #%s",
+             event.name.c_str(), event.tag.c_str())); }
+        }
 
         event.result.assign(cm_util::format("%s:%s", tag.c_str(), event.value.c_str()));
         return do_result(event);
@@ -247,7 +271,14 @@ public:
         event.name = name;
         event.tag = tag;
 
-        watchers.add(name, watcher(event.fd, tag, true /*remove*/));
+        watcher w(event.fd, event.tag, true /*remove*/);
+        if(watchers.check(name, w) == false) {
+            watchers.add(name, w);
+        }
+        else {
+            CM_LOG_TRACE { cm_log::trace(cm_util::format("watch already active: @%s #%s",
+             event.name.c_str(), event.tag.c_str())); }
+        }
 
         event.result.assign(cm_util::format("%s:%s", tag.c_str(), event.value.c_str()));
         return do_result(event);
