@@ -238,9 +238,9 @@ public:
 
     bool do_watch(const std::string &name, const std::string &tag, cm_cache::cache_event &event) {
 
-        //cm_log::info(cm_util::format("*%s #%s", name.c_str(), tag.c_str()));
+        cm_log::info(cm_util::format("*%s #%s", name.c_str(), tag.c_str()));
 
-        journal.lock();     // guard rotationn
+        journal.lock();     // guard rotation
         event.value = cm_store::mem_store.find(name);
         journal.unlock();
 
