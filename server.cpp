@@ -139,6 +139,10 @@ public:
         if(_map.find(name) != _map.end()) {
             std::vector<watcher> &v = _map[name];
             for(auto &_watcher: v) {
+
+                //cm_log::info(cm_util::format("%d: notify: %s #%s:%s", _watcher.fd,
+                //    name.c_str(), _watcher.tag.c_str(), value.c_str()));
+
                 cm_net::send(_watcher.fd,
                 cm_util::format("%s:%s\n", _watcher.tag.c_str(), value.c_str()));
                 if(_watcher.remove) { 
@@ -262,7 +266,7 @@ public:
 
     bool do_watch_remove(const std::string &name, const std::string &tag, cm_cache::cache_event &event) {
 
-        //cm_log::info(cm_util::format("@%s #%s", name.c_str(), tag.c_str()));
+        cm_log::info(cm_util::format("@%s #%s", name.c_str(), tag.c_str()));
 
         journal.lock();     // guard rotationn
         event.value = cm_store::mem_store.find(name);
@@ -285,6 +289,7 @@ public:
     }
 
     bool do_result(cm_cache::cache_event &event) {
+
         cm_net::send(event.fd, event.result.append("\n"));
 
         CM_LOG_TRACE {
