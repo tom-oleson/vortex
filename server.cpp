@@ -140,8 +140,10 @@ public:
             std::vector<watcher> &v = _map[name];
             for(auto &_watcher: v) {
 
-                //cm_log::info(cm_util::format("%d: notify: %s #%s:%s", _watcher.fd,
-                //    name.c_str(), _watcher.tag.c_str(), value.c_str()));
+                CM_LOG_TRACE {
+                    cm_log::info(cm_util::format("%d: notify: %s #%s", _watcher.fd, name.c_str(), _watcher.tag.c_str()));
+                    cm_log::hex_dump(cm_log::level::info, value.c_str(), value.size(), 16);
+                }
 
                 cm_net::send(_watcher.fd,
                 cm_util::format("%s:%s\n", _watcher.tag.c_str(), value.c_str()));
@@ -230,7 +232,7 @@ public:
 
     bool do_remove(const std::string &name, cm_cache::cache_event &event) {
     
-        //cm_log::info(cm_util::format("-%s", name.c_str()));
+        cm_log::info(cm_util::format("-%s", name.c_str()));
 
         // journal first to guard rotation
         journal.info(event.request);
@@ -266,7 +268,7 @@ public:
 
     bool do_watch_remove(const std::string &name, const std::string &tag, cm_cache::cache_event &event) {
 
-        cm_log::info(cm_util::format("@%s #%s", name.c_str(), tag.c_str()));
+        //cm_log::info(cm_util::format("@%s #%s", name.c_str(), tag.c_str()));
 
         journal.lock();     // guard rotationn
         event.value = cm_store::mem_store.find(name);
@@ -329,6 +331,13 @@ void request_handler(void *arg) {
 
     // new connection event (not input)
     if(event->connect) {
+        // send $:VORTEX
+        std::string hello("$:VORTEX\n");
+        cm_net::send(socket, hello);
+        CM_LOG_TRACE {
+            cm_log::info(cm_util::format("%d: sent hello:", socket));
+            cm_log::hex_dump(cm_log::level::info, hello.c_str(), hello.size(), 16);
+        }
         return;        
     }
 
