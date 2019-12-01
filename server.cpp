@@ -223,9 +223,9 @@ public:
 
                 // clean up publishers, there are no active sockets
                 // interacting with this name...                
-                if(publishers.check(name)) {
-                    publishers.remove(name);
-                }
+                //if(publishers.check(name)) {
+                //    publishers.remove(name);
+                //}
             }
             else {
                 i++;
