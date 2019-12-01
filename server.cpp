@@ -59,7 +59,7 @@ class publish_store: protected cm::mutex {
 
 protected:
     // unordered map for faster access vs. map using buckets
-    std::unordered_map<std::string,std::set<std::string>> _map;
+    std::unordered_map<std::string,std::vector<std::string>> _map;
 
 public:
 
@@ -70,15 +70,32 @@ public:
         return b;
     }
 
+    bool check(const std::string &name, const std::string &value) {
+        lock();
+        std::vector<std::string> &v = _map[name];
+ 
+        // scan for matching value
+        bool found = false;
+        for(auto &s : v) {
+            if(s == value) {
+                found = true;
+                break;
+            }
+        }       
+        unlock();
+        return found;
+    }
+
     bool add(const std::string &name, const std::string &value) {
         lock();
 
-        if(!check(name)) {
-            _map[name] = std::set<std::string>();
+        std::vector<std::string> &v = _map[name];
+
+        // if not already in our vector
+        if(!check(name, value)) {       
+            v.push_back(value);
         }
 
-        std::set<std::string> &s = _map[name];
-        s.insert(value);
         unlock();
         return true;
     }
@@ -87,8 +104,8 @@ public:
         lock();
         bool published = false;
         if(_map.find(name) != _map.end()) {
-            std::set<std::string> &s = _map[name];
-            for(auto &key: s) {
+            std::vector<std::string> &v = _map[name];
+            for(auto &key: v) {
 
                 CM_LOG_TRACE {
                     cm_log::info(cm_util::format("%d: publish: %s --> %s", event.fd, name.c_str(), key.c_str()));
