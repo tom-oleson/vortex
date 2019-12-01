@@ -150,20 +150,22 @@ public:
                 cm_net::send(_watcher.fd,
                 cm_util::format("%s:%s\n", _watcher.tag.c_str(), value.c_str()));
 
-                // avoid looping
-                if(_watcher.fd != event.fd) {
+                // does this watcher re-publish?
+                if(_watcher.pub.size() > 0) {
+                    // avoid looping
+                    if(_watcher.fd != event.fd) {
+                        // re-pub data to specified key
+                        std::string request = _watcher.pub;   //+key
+                        request.append(" ");
+                        request.append(value); 
 
-                    // re-pub data to specified key
-                    std::string request = _watcher.pub;   //+key
-                    request.append(" ");
-                    request.append(value); 
-
-                    // add request to pub queue
-                    pub_queue.push_back( request );
-                }
-                else {
-                    // warning about loop
-                    cm_log::warning(cm_util::format("re-pub ignored: loop detected through: %s", _watcher.pub.c_str()));
+                        // add request to pub queue
+                        pub_queue.push_back( request );
+                    }
+                    else {
+                        // warning about loop
+                        cm_log::warning(cm_util::format("re-pub ignored: loop detected through: %s", _watcher.pub.c_str()));
+                    }
                 }
 
                 if(_watcher.remove) { 
