@@ -230,7 +230,7 @@ public:
                 cm_util::format("%s:%s\n", _watcher.tag.c_str(), value.c_str()));
 
                 if(_watcher.pub.size() > 0) {
-                    std::string pub_name = _watcher.pub.substr(1); // remove + from +key
+                    std::string pub_name = _watcher.pub.substr(1); // remove + on +key
                     if(publishers.publish(pub_name, value, event)) {
                         CM_LOG_TRACE { cm_log::trace(cm_util::format("published on notify: %s", pub_name.c_str())); }
                     }
