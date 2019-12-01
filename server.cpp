@@ -72,6 +72,11 @@ public:
 
     bool add(const std::string &name, const std::string &value) {
         lock();
+
+        if(!check(name)) {
+            _map[name] = std::set<std::string>();
+        }
+
         std::set<std::string> &s = _map[name];
         s.insert(value);
         unlock();
@@ -228,8 +233,6 @@ public:
 
                 cm_net::send(_watcher.fd,
                 cm_util::format("%s:%s\n", _watcher.tag.c_str(), value.c_str()));
-
-                CM_LOG_TRACE { cm_log::trace(cm_util::format("_watcher.pub.size() = %d", _watcher.pub.size())); }
 
                 if(_watcher.pub.size() > 0) {
                     std::string pub_name = _watcher.pub.substr(1); // remove + on +key
