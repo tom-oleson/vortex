@@ -37,6 +37,7 @@
 #include "network.h"
 #include "storage.h"
 #include "cache.h"
+#include "queue.h"
 
 
 namespace vortex {
