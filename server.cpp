@@ -55,6 +55,79 @@ struct watcher {
 
 cm_queue::double_queue<std::string> pub_queue;
 
+class publish_store: protected cm::mutex {
+
+protected:
+    // unordered map for faster access vs. map using buckets
+    std::unordered_map<std::string,std::set<std::string>> _map;
+
+public:
+
+    bool check(const std::string &name) {
+        lock();
+        bool b = _map.find(name) != _map.end();
+        unlock();
+        return b;
+    }
+
+    bool add(const std::string &name, const std::string &value) {
+        lock();
+        std::set<std::string> &s = _map[name];
+        s.insert(value);
+        unlock();
+        return true;
+    }
+
+    bool publish(const std::string &name, const std::string &value, cm_cache::cache_event &event) {
+        lock();
+        bool published = false;
+        if(_map.find(name) != _map.end()) {
+            std::set<std::string> &s = _map[name];
+            for(auto &key: s) {
+
+                CM_LOG_TRACE {
+                    cm_log::info(cm_util::format("%d: publish: %s --> %s", event.fd, name.c_str(), key.c_str()));
+                    cm_log::hex_dump(cm_log::level::info, value.c_str(), value.size(), 16);
+                }
+
+                // publish data to specified key
+                std::string request = key;   //+key
+                request.append(" ");
+                request.append(value); 
+
+                // add request to pub queue
+                pub_queue.push_back( request );
+                published = true;
+            }
+        }
+        unlock();
+        return published;
+    }
+
+    size_t remove(const std::string &name) {
+        lock();
+        size_t num_erased = _map.erase(name);
+        unlock();
+        return num_erased;   
+    }
+    
+
+    size_t size() {
+        lock();
+        size_t size = _map.size();
+        unlock();
+        return size;
+    }
+
+    void clear() {
+        lock();
+        _map.clear();
+        unlock();
+    }
+};
+
+publish_store publishers;
+
 class watcher_store: protected cm::mutex {
 
 protected:
@@ -125,6 +198,12 @@ public:
                 std::string name = std::move(i->first);    
                 i = _map.erase(i);
                 CM_LOG_TRACE { cm_log::info(cm_util::format("removed key: [%s] (no more watchers)", name.c_str())); }
+
+                // clean up publishers, there are no active sockets
+                // interacting with this name...                
+                if(publishers.check(name)) {
+                    publishers.remove(name);
+                }
             }
             else {
                 i++;
@@ -149,24 +228,6 @@ public:
 
                 cm_net::send(_watcher.fd,
                 cm_util::format("%s:%s\n", _watcher.tag.c_str(), value.c_str()));
-
-                // does this watcher re-publish?
-                if(_watcher.pub.size() > 0) {
-                    // avoid looping
-                    if(_watcher.fd != event.fd) {
-                        // re-pub data to specified key
-                        std::string request = _watcher.pub;   //+key
-                        request.append(" ");
-                        request.append(value); 
-
-                        // add request to pub queue
-                        pub_queue.push_back( request );
-                    }
-                    else {
-                        // warning about loop
-                        cm_log::warning(cm_util::format("re-pub ignored: loop detected through: %s", _watcher.pub.c_str()));
-                    }
-                }
 
                 if(_watcher.remove) { 
                     do_remove = true;
@@ -274,6 +335,12 @@ public:
         event.name = name;
         event.tag = tag;
 
+        // create publishers inline from watcher requests
+        if(event.pub_name.size() > 0) {
+            publishers.add(name, event.pub_name);
+            // publishers removed when watchers disconnect
+        }
+
         watcher w(event.fd, event.tag, event.pub_name, false /*remove*/);
         if(watchers.check(name, w) == false) {
             watchers.add(name, w);
@@ -298,6 +365,12 @@ public:
         event.name = name;
         event.tag = tag;
 
+        // create publishers inline from watcher requests
+        if(event.pub_name.size() > 0) {
+            publishers.add(name, event.pub_name);
+            // publishers removed when watchers disconnect
+        }        
+
         watcher w(event.fd, event.tag, event.pub_name, true /*remove*/);
         if(watchers.check(name, w) == false) {
             watchers.add(name, w);
@@ -321,6 +394,11 @@ public:
         }
 
         if(event.notify) {
+
+            if(publishers.publish(event.name, event.value, event)) {
+                CM_LOG_TRACE { cm_log::trace(cm_util::format("published on notify: %s", event.name.c_str())); }                
+            }
+
             if(watchers.notify(event.name, event.value, event)) {
                 cm_store::mem_store.remove(event.name);
                 CM_LOG_TRACE { cm_log::trace(cm_util::format("removed on notify: %s", event.name.c_str())); }
@@ -392,8 +470,7 @@ void request_handler(void *arg) {
         cache.eval(item, req_event);
     }
 
-    // process any re-pub requests generated by this
-    // incoming request...
+    // process any publish requests generated by this incoming request...
 
     while(pub_queue.size() > 0) {
         item = pub_queue.pop_front();

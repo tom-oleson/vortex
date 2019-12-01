@@ -32,6 +32,7 @@
 
 #include <unordered_map>
 #include <vector>
+#include <set>
 
 #include "log.h"
 #include "network.h"
