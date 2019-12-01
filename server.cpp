@@ -229,6 +229,13 @@ public:
                 cm_net::send(_watcher.fd,
                 cm_util::format("%s:%s\n", _watcher.tag.c_str(), value.c_str()));
 
+                if(_watcher.pub.size() > 0) {
+                    std::string pub_name = _watcher.pub.substr(1); // remove + from +key
+                    if(publishers.publish(pub_name, value, event)) {
+                        CM_LOG_TRACE { cm_log::trace(cm_util::format("published on notify: %s", pub_name.c_str())); }
+                    }
+                }
+
                 if(_watcher.remove) { 
                     do_remove = true;
                 }
@@ -395,10 +402,6 @@ public:
 
         if(event.notify) {
 
-            if(publishers.publish(event.name, event.value, event)) {
-                CM_LOG_TRACE { cm_log::trace(cm_util::format("published on notify: %s", event.name.c_str())); }                
-            }
-
             if(watchers.notify(event.name, event.value, event)) {
                 cm_store::mem_store.remove(event.name);
                 CM_LOG_TRACE { cm_log::trace(cm_util::format("removed on notify: %s", event.name.c_str())); }
@@ -461,11 +464,10 @@ void request_handler(void *arg) {
     std::stringstream ss(request);
     std::string item;
 
-    // identify source socket
-    req_event.fd = socket;
-
     while (std::getline (ss, item, '\n')) {
         item.append("\n");
+        req_event.clear();
+        req_event.fd = socket;
         req_event.request.assign(item);
         cache.eval(item, req_event);
     }
