@@ -231,8 +231,9 @@ public:
 
                 if(_watcher.pub.size() > 0) {
                     std::string pub_name = _watcher.pub.substr(1); // remove + on +key
+                    CM_LOG_TRACE { cm_log::trace(cm_util::format("published on notify: %s", pub_name.c_str())); }                    
                     if(publishers.publish(pub_name, value, event)) {
-                        CM_LOG_TRACE { cm_log::trace(cm_util::format("published on notify: %s", pub_name.c_str())); }
+                        CM_LOG_TRACE { cm_log::trace(cm_util::format("DONE: published on notify: %s", pub_name.c_str())); }
                     }
                 }
 
