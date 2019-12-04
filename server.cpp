@@ -149,7 +149,7 @@ public:
 
             for(auto wit = v.begin(); wit != v.end(); ++wit) {
                 if(wit->pub.size() > 0) {
-                    auto p = std::make_pair(name, wit->pub);
+                    auto p = std::make_pair(name, wit->pub.substr(1));
                     outv.push_back(p);
                 }
             }
@@ -364,13 +364,17 @@ public:
         std::string pub_name = event.pub_name;
         if(pub_name.size() > 0) {
             std::vector<std::pair<std::string, std::string>> input;
+
+            // get current publishers
+            watchers.get_publishers(input);
+
             // add candidate pair
-            auto p = std::make_pair(name, pub_name);
+            auto p = std::make_pair(name, pub_name.substr(1));
             input.push_back(p);
 
             if(loop_analysis(input) == false) {
                 pub_name = "";
-                cm_log::warning(cm_util::format("[%s] did not pass loop analysis, ignoring", pub_name.c_str()));
+                cm_log::warning(cm_util::format("[%s] did not pass loop analysis, ignoring", event.pub_name.c_str()));
             }
         }
 
@@ -398,9 +402,25 @@ public:
         event.name = name;
         event.tag = tag;
 
-        // to-do: loop analysis here
+        // if pub name, do loop_analysis before allowing in new watcher
+        std::string pub_name = event.pub_name;
+        if(pub_name.size() > 0) {
+            std::vector<std::pair<std::string, std::string>> input;
 
-        watcher w(event.fd, event.tag, event.pub_name, true /*remove*/);
+            // get current publishers
+            watchers.get_publishers(input);
+
+            // add candidate pair
+            auto p = std::make_pair(name, pub_name.substr(1));
+            input.push_back(p);
+
+            if(loop_analysis(input) == false) {
+                pub_name = "";
+                cm_log::warning(cm_util::format("[%s] did not pass loop analysis, ignoring", event.pub_name.c_str()));
+            }
+        }
+
+        watcher w(event.fd, event.tag, pub_name, true /*remove*/);
         if(watchers.check(name, w) == false) {
             watchers.add(name, w);
         }
