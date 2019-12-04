@@ -53,6 +53,81 @@ struct watcher {
     }
 };
 
+
+bool loop_analysis(std::vector<std::pair<std::string, std::string>> &input) {
+
+    // flatten key/value pairs into route strings
+    // examples:
+    // 12/03/2019 18:21:42 [info]: etok xray pub etok
+    // 12/03/2019 18:21:42 [info]: etok red
+    // 12/03/2019 18:21:42 [info]: etok pub etok
+    // 12/03/2019 18:21:42 [info]: xray pub etok
+    // 12/03/2019 18:21:42 [info]: pub etok xray pub etok    
+
+    std::vector<std::string> route[input.size()];
+    int index = 0;
+
+    // for each input 
+    for(auto it = input.begin(); it != input.end(); ++it) {
+
+        std::string in_key = it->first;
+        std::string in_pub = it->second;
+
+        route[index].push_back(in_key);
+        route[index].push_back(in_pub);
+
+        // look for key that matches in_pub
+        for(auto pt = input.begin(); pt != input.end(); ++pt) {
+            std::string key = pt->first;
+            std::string pub = pt->second;
+            if(key == in_pub) {
+                route[index].push_back(pub);
+                // new search term forward
+                in_pub = pub;
+            }
+         }
+         index++;
+    }
+
+    // count the number of times each key occurs in the route
+    // more than once means it is a loop in the route
+
+    bool found_loop = false;
+
+    for(int k = 0; k < input.size(); k++) {
+        std::string s;
+        std::map<std::string,int> counts;
+
+        // build output log string and key count
+        for(auto it = route[k].begin(); it != route[k].end(); ++it) {
+            s += (*it) + " ";
+            counts[*it]++;
+        }
+
+        // sum the number of keys that occur more than once;
+        // that is the total number of loops in the route
+        int loop_sum = 0;
+        for(auto &it : counts) {
+            int count = it.second;
+            if(count > 1) {
+                loop_sum += (count - 1);
+                found_loop = true;
+            }
+        }
+
+        std::string loop_report = loop_sum > 0 ?
+         cm_util::format("%d loop(s)", loop_sum) : "OK";
+
+        std::string msg = cm_util::format("%s: %s", s.c_str(), 
+            loop_report.c_str());
+
+        if(loop_sum > 0) cm_log::error(msg.c_str());
+        else cm_log::info(msg.c_str());
+    }
+
+    return found_loop == false;
+}
+
 // when notify has a watcher with a re-pub key, it will put the publish
 // request in this queue
 cm_queue::double_queue<std::string> pub_queue;
@@ -65,6 +140,22 @@ protected:
 
 public:
 
+
+    void get_publishers(std::vector<std::pair<std::string, std::string>> &outv) {
+
+        for(auto it = _map.begin(); it != _map.end(); ++it) {
+            std::string name = it->first;
+            std::vector<watcher> &v = it->second;
+
+            for(auto wit = v.begin(); wit != v.end(); ++wit) {
+                if(wit->pub.size() > 0) {
+                    auto p = std::make_pair(name, wit->pub);
+                    outv.push_back(p);
+                }
+            }
+        }
+    }
+    
     bool check(const std::string &name) {
         lock();
         bool b = _map.find(name) != _map.end();
@@ -269,7 +360,21 @@ public:
         event.name = name;
         event.tag = tag;
 
-        watcher w(event.fd, event.tag, event.pub_name, false /*remove*/);
+        // if pub name, do loop_analysis before allowing in new watcher
+        std::string pub_name = event.pub_name;
+        if(pub_name.size() > 0) {
+            std::vector<std::pair<std::string, std::string>> input;
+            // add candidate pair
+            auto p = std::make_pair(name, pub_name);
+            input.push_back(p);
+
+            if(loop_analysis(input) == false) {
+                pub_name = "";
+                cm_log::warning(cm_util::format("[%s] did not pass loop analysis, ignoring", pub_name.c_str()));
+            }
+        }
+
+        watcher w(event.fd, event.tag, pub_name, false /*remove*/);
         if(watchers.check(name, w) == false) {
             watchers.add(name, w);
         }
@@ -292,6 +397,8 @@ public:
 
         event.name = name;
         event.tag = tag;
+
+        // to-do: loop analysis here
 
         watcher w(event.fd, event.tag, event.pub_name, true /*remove*/);
         if(watchers.check(name, w) == false) {
