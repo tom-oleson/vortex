@@ -38,7 +38,7 @@ bool connected = false;
 int host_port = -1;
 
 // used by server to echo back connected vortex
-int vortex_echo_fd = -1;
+//int vortex_echo_fd = -1;
 
 void _sleep(int interval /* ms */) {
 
@@ -53,18 +53,6 @@ void _sleep(int interval /* ms */) {
     nanosleep(&delay, NULL);    // interruptable
 }
 
-//cm::mutex rx_mutex;
-//cm::mutex tx_mutex;
-//cm::cond rx_response;
-//char *rx_buffer = nullptr;
-//size_t rx_sz = 0;
-//size_t rx_len = 0;
-
-// void clear_rx_buffer(size_t sz) {
-//     memset(rx_buffer, 0, sz);
-//     rx_len = 0;
-// }
-
 void request_handler(void *arg);
 void request_dealloc(void *arg);
 void server_echo(int fd, const char *buf, size_t sz);
@@ -73,55 +61,32 @@ void server_echo(int fd, const char *buf, size_t sz);
 // network client received data from remote vortex server
 void client_receive(int socket, const char *buf, size_t sz) {
 
-    // rx_mutex.lock();
-    // rx_buffer = (char *) buf;
-    // rx_sz = sz;
-    // rx_len = sz;
-    // rx_mutex.unlock();
+    std::string request(buf, sz);
 
-    //rx_response.signal();   // wake up waiting thread
+    if(request == "$:VORTEX\n") {
+        server_echo(socket, "$:VORTEX_CLIENT\n", 16);
+        return;
+    }
 
-    //_sleep(100);
+    CM_LOG_TRACE {
+        cm_log::trace(cm_util::format("%d: received response:", socket));
+        cm_log::hex_dump(cm_log::level::trace, buf, sz, 16);
+    }
 
-    // if data not consumed by server_receive response, this is a
-    // incoming request from the remote vortex server
+    // cm_net::input_event *event = new cm_net::input_event(socket,
+    //     request);
 
-    //rx_mutex.lock();
-    //if(rx_len > 0) {
-
-        //std::string request(rx_buffer, rx_len);
-
-        std::string request(buf, sz);
-
-        if(request == "$:VORTEX\n") {
-            //clear_rx_buffer(rx_sz);
-            //rx_mutex.unlock();
-            server_echo(socket, "$:VORTEX_CLIENT\n", 16);
-            return;
-        }
-
-        cm_net::input_event *event = new cm_net::input_event(socket,
-            request);
-
-        if(nullptr != event) {
-            // add data to thread pool which will call this vortex
-            // server's request handler
-            thread_pool_ptr->add_task(request_handler, event, request_dealloc);
-        }
-        else {
-            cm_log::critical("client_receive: pool_server: error: event allocation failed!");
-        }
-
-        //clear_rx_buffer(rx_sz);     // set to consumed
-    //}
-
-    //rx_mutex.unlock();
-    
-
-    //rx_response.signal(); // wake up waiting thread
+    // if(nullptr != event) {
+    //     // add data to thread pool which will call this vortex
+    //     // server's request handler
+    //     thread_pool_ptr->add_task(request_handler, event, request_dealloc);
+    // }
+    // else {
+    //     cm_log::critical("client_receive: pool_server: error: event allocation failed!");
+    // }
 }
 
-// echo request to remove vortex server
+// echo request to remote vortex server
 void server_echo(int fd, const char *buf, size_t sz) {
 
     // send data to remote vortex server
@@ -135,43 +100,6 @@ void server_echo(int fd, const char *buf, size_t sz) {
             cm_log::hex_dump(cm_log::level::trace, buf, written, 16);
         }
     }
-
-    // timespec now;
-    // clock_gettime(CLOCK_REALTIME, &now);
-    // time_t timeout = cm_time::millis(now) + 300;   // 300ms
-
-    // rx_mutex.lock();
-    // while(rx_len == 0) {
-
-    //     // unlocks rx_mutex, then sleeps
-    //     // on wakeup signal, locks rx_mutex again
-    //     // and thread begins to run again...
-    //     timespec ts = {0, 10000000};   // 10 ms
-    //     rx_response.timed_wait(rx_mutex, ts);
-
-    //     // see if we've timed out waiting for response
-    //     clock_gettime(CLOCK_REALTIME, &now);
-    //     if(cm_time::millis(now) > timeout) {
-    //         rx_mutex.unlock();
-    //         rx_response.signal();
-    //         CM_LOG_TRACE { cm_log::trace(cm_util::format("%d: timeout wait for response", fd)); }
-    //         return;
-    //     }
-    // }
-
-    // // log response from remote vortex server
-    // if(rx_len > 0) {
-
-    //     CM_LOG_TRACE {
-    //         cm_log::trace(cm_util::format("%d: received response:", fd));
-    //             cm_log::hex_dump(cm_log::level::trace, rx_buffer, rx_sz, 16);
-    //     }
-
-    //     clear_rx_buffer(rx_sz);  // set to consumed
-    // }
-
-    // rx_mutex.unlock();
-    // rx_response.signal();
 }
 
 //////////////////////////////////// server //////////////////////////////////
@@ -641,10 +569,10 @@ void request_handler(void *arg) {
             CM_LOG_TRACE { cm_log::info(cm_util::format("%d: socket removed from %d watcher(s)", socket, num)); }
         }
 
-        if(vortex_echo_fd == socket) {
-            vortex_echo_fd = -1;
-            CM_LOG_TRACE { cm_log::info(cm_util::format("%d: vortex to vortex discontinued", socket)); }
-        }
+        // if(vortex_echo_fd == socket) {
+        //     vortex_echo_fd = -1;
+        //     CM_LOG_TRACE { cm_log::info(cm_util::format("%d: vortex to vortex discontinued", socket)); }
+        // }
         return;
     }
 
@@ -653,17 +581,18 @@ void request_handler(void *arg) {
         cm_log::hex_dump(cm_log::level::trace, request.c_str(), request.size(), 16);
     }
 
-    if(vortex_echo_fd == -1 && request == "$:VORTEX_CLIENT\n") {
-        vortex_echo_fd = socket;
-        CM_LOG_TRACE { cm_log::info(cm_util::format("%d: vortex to vortex established", socket)); }
-        return;
-    }
+    // if(vortex_echo_fd == -1 && request == "$:VORTEX_CLIENT\n") {
+    //     vortex_echo_fd = socket;
+    //     CM_LOG_TRACE { cm_log::info(cm_util::format("%d: vortex to vortex established", socket)); }
+    //     return;
+    // }
 
     // echo to remote vortex server
-    if(vortex_echo_fd != -1 && socket != vortex_echo_fd) {
-        server_echo(vortex_echo_fd, request.c_str(), request.size());
-    }
-    else if(nullptr != client && client->is_connected()) {
+    // if(vortex_echo_fd != -1 && socket != vortex_echo_fd) {
+    //     server_echo(vortex_echo_fd, request.c_str(), request.size());
+    // }
+    //else
+    if(nullptr != client && client->is_connected()) {
         server_echo(client->get_socket(), request.c_str(), request.size());
     }
 
