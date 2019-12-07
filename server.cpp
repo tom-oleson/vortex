@@ -29,6 +29,160 @@
 
 #include "server.h"
 
+//////////////////////////////////// client //////////////////////////////////
+
+cm_thread::pool *thread_pool_ptr = nullptr;
+
+cm_net::client_thread *client = nullptr;
+bool connected = false;
+int host_port = -1;
+
+void _sleep(int interval /* ms */) {
+
+    // allow other threads to do some work
+    long n = 1000000;
+    time_t s = 0;
+    if(interval > 0) {
+        n = ((long) interval % 1000L) * 1000000L;
+        s = (time_t) interval / 1000;
+    }
+    timespec delay = {s, n};
+    nanosleep(&delay, NULL);    // interruptable
+}
+
+cm::mutex rx_mutex;
+cm::mutex tx_mutex;
+cm::cond rx_response;
+char *rx_buffer = nullptr;
+size_t rx_sz = 0;
+size_t rx_len = 0;
+
+void clear_rx_buffer(size_t sz) {
+    memset(rx_buffer, 0, sz);
+    rx_len = 0;
+}
+
+void request_handler(void *arg);
+void request_dealloc(void *arg);
+void server_echo(int fd, const char *buf, size_t sz);
+
+
+// network client received data from remote vortex server
+void client_receive(int socket, const char *buf, size_t sz) {
+
+    rx_mutex.lock();
+    rx_buffer = (char *) buf;
+    rx_sz = sz;
+    rx_len = sz;
+    rx_mutex.unlock();
+
+    rx_response.signal();   // wake up waiting thread
+
+    _sleep(100);
+    rx_mutex.lock();
+
+    // if data not consumed by server_receive response, this is a
+    // incoming request from the remote vortex server
+
+    if(rx_len > 0) {
+
+        std::string request(rx_buffer, rx_len);
+
+        if(request == "$:VORTEX\n") {
+            server_echo(socket, "$:VORTEX_CLIENT\n", 9);
+            clear_rx_buffer(rx_sz);
+            rx_mutex.unlock();
+            return;
+        }
+
+        cm_net::input_event *event = new cm_net::input_event(socket,
+            request);
+
+        if(nullptr != event) {
+            // add data to thread pool which will call this vortex
+            // server's request handler
+            thread_pool_ptr->add_task(request_handler, event, request_dealloc);
+        }
+        else {
+            cm_log::critical("client_receive: pool_server: error: event allocation failed!");
+        }
+        
+
+        clear_rx_buffer(rx_sz);     // set to consumed
+    }
+    rx_mutex.unlock();
+
+    rx_response.signal(); // wake up waiting thread
+}
+
+// server received request from a vortex client
+// and this is a copy of that request, so echo
+// it to the remove vortex server
+void server_echo(int fd, const char *buf, size_t sz) {
+
+    // if connected to a client and request did not originate
+    // from the client, send a copy to the remove vortex server
+    if(nullptr != client && fd != client->get_socket()) {
+        if(client->is_connected()) {
+
+            rx_mutex.lock();
+
+            // send data to remote vortex server
+            int written = cm_net::write(client->get_socket(), buf, sz);
+            if(written < 0) {
+                cm_net::err("server_receive: net_write", errno);
+            }
+            else {
+                CM_LOG_TRACE {
+                    cm_log::trace(cm_util::format("%d: sent request:", client->get_socket()));
+                    cm_log::hex_dump(cm_log::level::trace, buf, written, 16);
+                }
+            }
+
+            timespec now;
+            clock_gettime(CLOCK_REALTIME, &now);
+            time_t timeout = cm_time::millis(now) + 200;   // 200ms
+
+            while(rx_len == 0) {
+
+                // unlocks rx_mutex, then sleeps
+                // on wakeup signal, locks rx_mutex again
+                // and thread begins to run again...
+                timespec ts = {0, 10000000};   // 10 ms
+                rx_response.timed_wait(rx_mutex, ts);
+
+                // see if we've timed out waiting for response
+                clock_gettime(CLOCK_REALTIME, &now);
+                if(cm_time::millis(now) > timeout) {
+                    rx_mutex.unlock();
+                    rx_response.signal();
+                    return;
+                }
+            }
+
+            // log response from remote vortex server
+            if(rx_len > 0) {
+
+                CM_LOG_TRACE {
+                    cm_log::trace(cm_util::format("%d: received response:", fd));
+                        cm_log::hex_dump(cm_log::level::trace, rx_buffer, rx_sz, 16);
+                }
+
+                clear_rx_buffer(rx_sz);  // set to consumed
+            }
+
+            rx_mutex.unlock();
+            rx_response.signal();
+        }
+        else {
+            // data not delivered
+            // to-do: add send queue
+        }
+    }
+}
+
+//////////////////////////////////// server //////////////////////////////////
+
 extern vortex::journal_logger journal;
 
 struct watcher {
@@ -403,24 +557,67 @@ void request_handler(void *arg) {
              nanosleep(&delay, NULL);  
          } 
     }
+
+    // echo to remote vortex server
+    server_echo(socket, request.c_str(), request.size());
 }
 
 void request_dealloc(void *arg) {
     delete (cm_net::input_event *) arg;
 }
 
-void vortex::run(int port) {
+void vortex::run(int port, const std::string &host_name, int _host_port) {
+
+    if(_host_port != -1) {
+    host_port = _host_port;
+        cm_log::info(cm_util::format("remote vortex server: %s:%d", host_name.c_str(), host_port));
+    }
+
+    connected = false;
+    time_t next_connect_time = 0;
 
     // create thread pool that will do work for the server
     cm_thread::pool thread_pool(6);
+    thread_pool_ptr = &thread_pool;
 
     // startup tcp server
     cm_net::pool_server server(port, &thread_pool, request_handler,
         request_dealloc);
 
-    while(1) {
-        timespec delay = {0, 100000000};   // 100 ms
-        nanosleep(&delay, NULL);
+    while( !server.is_done() ) {
+    //while(1) {
+        // timespec delay = {0, 100000000};   // 100 ms
+        // nanosleep(&delay, NULL);
+
+        _sleep(1000);
+
+        if(host_port != -1) {
+
+            if(nullptr == client) {
+                client = new cm_net::client_thread(host_name, host_port, client_receive);
+                next_connect_time = cm_time::clock_seconds() + 60;
+            }
+
+            // if client thread is running, we are connected
+            if(nullptr != client && client->is_connected()) {
+                if(!connected) {
+                    connected = true;
+                }
+            }
+
+            // if client thread is NOT running, we are NOT connected
+            if(nullptr != client && !client->is_connected()) {
+                if(connected) {
+                    connected = false;
+                }
+
+                if(cm_time::clock_seconds() > next_connect_time) {
+                    // attempt reconnect
+                    client->start();
+                    next_connect_time = cm_time::clock_seconds() + 60;
+                }
+            }
+        }
     }
 
     // wait for pool_server threads to complete all work tasks

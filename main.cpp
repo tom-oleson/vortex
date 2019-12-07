@@ -44,6 +44,20 @@ R"(  \____ \  /   / /)""\n"
 R"(       \ \____/ /)""\n"
 R"(        \______/)""\n";
 
+
+void usage(int argc, char *argv[]) {
+    printf("usage: %s [-p<port>] [-l<level>] [-i<interval>] [-k<keep>] [-c host:port] [-v]\n", argv[0]);
+    puts("");
+    puts("-p port       Listen on port");
+    puts("-l level      Log level");
+    puts("-i interval   Cache rotation interval");
+    puts("-k keep       Number of journal logs to keep in rotation");
+    puts("-c host:port  Host name and port");
+    puts("-v            Output version/build info to console");
+    puts("");
+}
+
+
 int main(int argc, char *argv[]) {
 
     puts(__banner__);
@@ -54,8 +68,12 @@ int main(int argc, char *argv[]) {
     bool version = false;
     int interval = 0;
     int keep = 0;
+    std::string host_name = "localhost";
+    int host_port = -1;
 
-    while((opt = getopt(argc, argv, "hl:p:i:k:v")) != -1) {
+    std::vector<std::string> v;
+
+    while((opt = getopt(argc, argv, "hl:p:i:k:c:v")) != -1) {
         switch(opt) {
             case 'p':
                 port = atoi(optarg);
@@ -64,6 +82,14 @@ int main(int argc, char *argv[]) {
             case 'v':
                 version = true;
                 break;
+
+            case 'c':
+                v = cm_util::split(optarg, ':');
+                if(v.size() == 2) {
+                    host_name = v[0];
+                    host_port = atoi(v[1].c_str());
+                }
+                break;                                
 
             case 'l':
                 log_lvl = atoi(optarg);
@@ -79,7 +105,7 @@ int main(int argc, char *argv[]) {
 
             case 'h':
             default:
-                printf("usage: %s [-p<port>] [-l<level>] [-i<interval>] [-k<keep>] [-v]\n", argv[0]);
+                printf("usage: %s [-p<port>] [-l<level>] [-i<interval>] [-k<keep>] [-c host:port] [-v]\n", argv[0]);
                 exit(0);
         }
     }
@@ -88,7 +114,7 @@ int main(int argc, char *argv[]) {
     cm_log::always(cm_util::format("VORTEX %s build: %s %s", VERSION ,__DATE__,__TIME__));
     
     vortex::init_storage();
-    vortex::run(port);
+    vortex::run(port, host_name, host_port);
 
     return 0;
 }
