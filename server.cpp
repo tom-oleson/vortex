@@ -73,23 +73,24 @@ void server_echo(int fd, const char *buf, size_t sz);
 // network client received data from remote vortex server
 void client_receive(int socket, const char *buf, size_t sz) {
 
-    rx_mutex.lock();
-    rx_buffer = (char *) buf;
-    rx_sz = sz;
-    rx_len = sz;
-    rx_mutex.unlock();
+    // rx_mutex.lock();
+    // rx_buffer = (char *) buf;
+    // rx_sz = sz;
+    // rx_len = sz;
+    // rx_mutex.unlock();
 
-    rx_response.signal();   // wake up waiting thread
+    //rx_response.signal();   // wake up waiting thread
 
-    _sleep(100);
+    //_sleep(100);
 
     // if data not consumed by server_receive response, this is a
     // incoming request from the remote vortex server
 
-    rx_mutex.lock();
-    if(rx_len > 0) {
+    //rx_mutex.lock();
+    //if(rx_len > 0) {
 
-        std::string request(rx_buffer, rx_len);
+        //std::string request(rx_buffer, rx_len);
+        std::string request(buf, sz);
 
         if(request == "$:VORTEX\n") {
             clear_rx_buffer(rx_sz);
@@ -110,11 +111,13 @@ void client_receive(int socket, const char *buf, size_t sz) {
             cm_log::critical("client_receive: pool_server: error: event allocation failed!");
         }
 
-        clear_rx_buffer(rx_sz);     // set to consumed
-    }
+        //clear_rx_buffer(rx_sz);     // set to consumed
+    //}
 
-    rx_mutex.unlock();
-    rx_response.signal(); // wake up waiting thread
+    //rx_mutex.unlock();
+    
+
+    //rx_response.signal(); // wake up waiting thread
 }
 
 // echo request to remove vortex server
@@ -132,42 +135,42 @@ void server_echo(int fd, const char *buf, size_t sz) {
         }
     }
 
-    timespec now;
-    clock_gettime(CLOCK_REALTIME, &now);
-    time_t timeout = cm_time::millis(now) + 300;   // 300ms
+    // timespec now;
+    // clock_gettime(CLOCK_REALTIME, &now);
+    // time_t timeout = cm_time::millis(now) + 300;   // 300ms
 
-    rx_mutex.lock();
-    while(rx_len == 0) {
+    // rx_mutex.lock();
+    // while(rx_len == 0) {
 
-        // unlocks rx_mutex, then sleeps
-        // on wakeup signal, locks rx_mutex again
-        // and thread begins to run again...
-        timespec ts = {0, 10000000};   // 10 ms
-        rx_response.timed_wait(rx_mutex, ts);
+    //     // unlocks rx_mutex, then sleeps
+    //     // on wakeup signal, locks rx_mutex again
+    //     // and thread begins to run again...
+    //     timespec ts = {0, 10000000};   // 10 ms
+    //     rx_response.timed_wait(rx_mutex, ts);
 
-        // see if we've timed out waiting for response
-        clock_gettime(CLOCK_REALTIME, &now);
-        if(cm_time::millis(now) > timeout) {
-            rx_mutex.unlock();
-            rx_response.signal();
-            CM_LOG_TRACE { cm_log::trace(cm_util::format("%d: timeout wait for response", fd)); }
-            return;
-        }
-    }
+    //     // see if we've timed out waiting for response
+    //     clock_gettime(CLOCK_REALTIME, &now);
+    //     if(cm_time::millis(now) > timeout) {
+    //         rx_mutex.unlock();
+    //         rx_response.signal();
+    //         CM_LOG_TRACE { cm_log::trace(cm_util::format("%d: timeout wait for response", fd)); }
+    //         return;
+    //     }
+    // }
 
-    // log response from remote vortex server
-    if(rx_len > 0) {
+    // // log response from remote vortex server
+    // if(rx_len > 0) {
 
-        CM_LOG_TRACE {
-            cm_log::trace(cm_util::format("%d: received response:", fd));
-                cm_log::hex_dump(cm_log::level::trace, rx_buffer, rx_sz, 16);
-        }
+    //     CM_LOG_TRACE {
+    //         cm_log::trace(cm_util::format("%d: received response:", fd));
+    //             cm_log::hex_dump(cm_log::level::trace, rx_buffer, rx_sz, 16);
+    //     }
 
-        clear_rx_buffer(rx_sz);  // set to consumed
-    }
+    //     clear_rx_buffer(rx_sz);  // set to consumed
+    // }
 
-    rx_mutex.unlock();
-    rx_response.signal();
+    // rx_mutex.unlock();
+    // rx_response.signal();
 }
 
 //////////////////////////////////// server //////////////////////////////////
