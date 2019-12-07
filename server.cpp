@@ -660,7 +660,7 @@ void request_handler(void *arg) {
         cm_log::hex_dump(cm_log::level::trace, request.c_str(), request.size(), 16);
     }
 
-    if(vortex_echo_fd == -1 && request == "$:VORTEX_CLIENT") {
+    if(vortex_echo_fd == -1 && request == "$:VORTEX_CLIENT\n") {
         vortex_echo_fd = socket;
         CM_LOG_TRACE { cm_log::info(cm_util::format("%d: vortex to vortex established", socket)); }
     }
