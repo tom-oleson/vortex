@@ -89,9 +89,9 @@ void client_receive(int socket, const char *buf, size_t sz) {
         std::string request(rx_buffer, rx_len);
 
         if(request == "$:VORTEX\n") {
-            server_echo(socket, "$:VORTEX_CLIENT\n", 9);
             clear_rx_buffer(rx_sz);
             rx_mutex.unlock();
+            server_echo(client->get_socket(), "$:VORTEX_CLIENT\n", 16);
             return;
         }
 
@@ -106,12 +106,11 @@ void client_receive(int socket, const char *buf, size_t sz) {
         else {
             cm_log::critical("client_receive: pool_server: error: event allocation failed!");
         }
-        
 
         clear_rx_buffer(rx_sz);     // set to consumed
     }
-    rx_mutex.unlock();
 
+    rx_mutex.unlock();
     rx_response.signal(); // wake up waiting thread
 }
 
@@ -122,7 +121,7 @@ void server_echo(int fd, const char *buf, size_t sz) {
 
     // if connected to a client and request did not originate
     // from the client, send a copy to the remove vortex server
-    if(nullptr != client && fd != client->get_socket()) {
+    if(nullptr != client) {
         if(client->is_connected()) {
 
             rx_mutex.lock();
@@ -620,6 +619,7 @@ public:
 };
 
 vortex_processor processor;
+int vortex_echo_fd = -1;
 
 void request_handler(void *arg) {
 
@@ -647,12 +647,22 @@ void request_handler(void *arg) {
         if(num > 0) {
             CM_LOG_TRACE { cm_log::info(cm_util::format("%d: socket removed from %d watcher(s)", socket, num)); }
         }
+
+        if(vortex_echo_fd == socket) {
+            vortex_echo_fd = -1;
+            CM_LOG_TRACE { cm_log::info(cm_util::format("%d: vortex to vortex discontinued", socket)); }
+        }
         return;
     }
 
     CM_LOG_TRACE {
         cm_log::trace(cm_util::format("%d: received request:", socket));
         cm_log::hex_dump(cm_log::level::trace, request.c_str(), request.size(), 16);
+    }
+
+    if(vortex_echo_fd == -1 && request == "$:VORTEX_CLIENT") {
+        vortex_echo_fd = socket;
+        CM_LOG_TRACE { cm_log::info(cm_util::format("%d: vortex to vortex established", socket)); }
     }
 
     cm_cache::cache cache(&processor);
@@ -686,7 +696,9 @@ void request_handler(void *arg) {
     }
 
     // echo to remote vortex server
-    server_echo(socket, request.c_str(), request.size());
+    if(vortex_echo_fd != -1) {
+        server_echo(vortex_echo_fd, request.c_str(), request.size());
+    }
 }
 
 void request_dealloc(void *arg) {
