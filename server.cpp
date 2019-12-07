@@ -31,6 +31,7 @@
 
 //////////////////////////////////// client //////////////////////////////////
 
+cm_thread::pool *thread_pool_ptr = nullptr;
 
 cm_net::client_thread *client = nullptr;
 bool connected = false;
@@ -38,6 +39,8 @@ int host_port = -1;
 int echo_fd = -1;
 
 void server_echo(int fd, const char *buf, size_t sz);
+void request_handler(void *arg);
+void request_dealloc(void *arg);
 
 void _sleep(int interval /* ms */) {
 
@@ -59,24 +62,25 @@ void client_receive(int socket, const char *buf, size_t sz) {
 
     if(request == "$:VORTEX\n") {
         server_echo(socket, "$:VORTEX_CLIENT\n", 16);
+        return;
     }
 
-    CM_LOG_TRACE {
-        cm_log::trace(cm_util::format("%d: received response:", socket));
-        cm_log::hex_dump(cm_log::level::trace, buf, sz, 16);
+    // CM_LOG_TRACE {
+    //     cm_log::trace(cm_util::format("%d: received echo:", socket));
+    //     cm_log::hex_dump(cm_log::level::trace, buf, sz, 16);
+    // }
+
+    cm_net::input_event *event = new cm_net::input_event(socket,
+         request);
+
+    if(nullptr != event) {
+        // add data to thread pool which will call this vortex
+        // server's request handler to update our cache
+        thread_pool_ptr->add_task(request_handler, event, request_dealloc);
     }
-
-    // cm_net::input_event *event = new cm_net::input_event(socket,
-    //     request);
-
-    // if(nullptr != event) {
-    //     // add data to thread pool which will call this vortex
-    //     // server's request handler
-    //     thread_pool_ptr->add_task(request_handler, event, request_dealloc);
-    // }
-    // else {
-    //     cm_log::critical("client_receive: pool_server: error: event allocation failed!");
-    // }
+    else {
+         cm_log::critical("client_receive: pool_server: error: event allocation failed!");
+    }
 }
 
 // echo request to remote vortex server
@@ -516,11 +520,21 @@ public:
 
     bool do_result(cm_cache::cache_event &event) {
 
-        cm_net::send(event.fd, event.result.append("\n"));
+        bool send = (connected && client->get_socket() == event.fd) ? false : true;
 
-        CM_LOG_TRACE {
-            cm_log::trace(cm_util::format("%d: sent response:", event.fd));
-            cm_log::hex_dump(cm_log::level::trace, event.result.c_str(), event.result.size(), 16);
+        if(send) {
+            cm_net::send(event.fd, event.result.append("\n"));
+
+            CM_LOG_TRACE {
+                cm_log::trace(cm_util::format("%d: sent response:", event.fd));
+                cm_log::hex_dump(cm_log::level::trace, event.result.c_str(), event.result.size(), 16);
+            }
+        }
+        else {
+            CM_LOG_TRACE {
+                cm_log::trace("request result:");
+                cm_log::hex_dump(cm_log::level::trace, event.result.c_str(), event.result.size(), 16);
+            }
         }
 
         if(event.notify) {
@@ -641,6 +655,7 @@ void vortex::run(int port, const std::string &host_name, int _host_port) {
 
     // create thread pool that will do work for the server
     cm_thread::pool thread_pool(6);
+    thread_pool_ptr = &thread_pool;
 
     // startup tcp server
     cm_net::pool_server server(port, &thread_pool, request_handler,
