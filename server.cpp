@@ -37,6 +37,9 @@ cm_net::client_thread *client = nullptr;
 bool connected = false;
 int host_port = -1;
 
+// used by server to echo back connected vortex
+int vortex_echo_fd = -1;
+
 void _sleep(int interval /* ms */) {
 
     // allow other threads to do some work
@@ -79,11 +82,11 @@ void client_receive(int socket, const char *buf, size_t sz) {
     rx_response.signal();   // wake up waiting thread
 
     _sleep(100);
-    rx_mutex.lock();
 
     // if data not consumed by server_receive response, this is a
     // incoming request from the remote vortex server
 
+    rx_mutex.lock();
     if(rx_len > 0) {
 
         std::string request(rx_buffer, rx_len);
@@ -114,70 +117,73 @@ void client_receive(int socket, const char *buf, size_t sz) {
     rx_response.signal(); // wake up waiting thread
 }
 
-// server received request from a vortex client
-// and this is a copy of that request, so echo
-// it to the remove vortex server
+// server received request from a vortex client (local or remote)
+// and this is a copy of that request, so echo to the remote vortex server
 void server_echo(int fd, const char *buf, size_t sz) {
 
     // if connected to a client and request did not originate
-    // from the client, send a copy to the remove vortex server
-    if(nullptr != client) {
-        if(client->is_connected()) {
+    // from the client socket
 
-            rx_mutex.lock();
+    if(vortex_echo_fd != -1 || (nullptr != client && client->is_connected())) {
 
-            // send data to remote vortex server
-            int written = cm_net::write(client->get_socket(), buf, sz);
-            if(written < 0) {
-                cm_net::err("server_receive: net_write", errno);
-            }
-            else {
-                CM_LOG_TRACE {
-                    cm_log::trace(cm_util::format("%d: sent request:", client->get_socket()));
-                    cm_log::hex_dump(cm_log::level::trace, buf, written, 16);
-                }
-            }
+        // don't loop requests back to its source!
+        if(vortex_echo_fd != -1 && fd == vortex_echo_fd) return;
+        if(nullptr != client && fd == client->get_socket()) return;
 
-            timespec now;
-            clock_gettime(CLOCK_REALTIME, &now);
-            time_t timeout = cm_time::millis(now) + 200;   // 200ms
-
-            while(rx_len == 0) {
-
-                // unlocks rx_mutex, then sleeps
-                // on wakeup signal, locks rx_mutex again
-                // and thread begins to run again...
-                timespec ts = {0, 10000000};   // 10 ms
-                rx_response.timed_wait(rx_mutex, ts);
-
-                // see if we've timed out waiting for response
-                clock_gettime(CLOCK_REALTIME, &now);
-                if(cm_time::millis(now) > timeout) {
-                    rx_mutex.unlock();
-                    rx_response.signal();
-                    return;
-                }
-            }
-
-            // log response from remote vortex server
-            if(rx_len > 0) {
-
-                CM_LOG_TRACE {
-                    cm_log::trace(cm_util::format("%d: received response:", fd));
-                        cm_log::hex_dump(cm_log::level::trace, rx_buffer, rx_sz, 16);
-                }
-
-                clear_rx_buffer(rx_sz);  // set to consumed
-            }
-
-            rx_mutex.unlock();
-            rx_response.signal();
+        // send data to remote vortex server
+        int written = cm_net::write(fd, buf, sz);
+        if(written < 0) {
+            cm_net::err("server_receive: net_write", errno);
         }
         else {
-            // data not delivered
-            // to-do: add send queue
+            CM_LOG_TRACE {
+                cm_log::trace(cm_util::format("%d: sent request:", fd));
+                cm_log::hex_dump(cm_log::level::trace, buf, written, 16);
+            }
         }
+
+        timespec now;
+        clock_gettime(CLOCK_REALTIME, &now);
+        time_t timeout = cm_time::millis(now) + 300;   // 300ms
+
+        rx_mutex.lock();
+        while(rx_len == 0) {
+
+            // unlocks rx_mutex, then sleeps
+            // on wakeup signal, locks rx_mutex again
+            // and thread begins to run again...
+            timespec ts = {0, 10000000};   // 10 ms
+            rx_response.timed_wait(rx_mutex, ts);
+
+            // see if we've timed out waiting for response
+            clock_gettime(CLOCK_REALTIME, &now);
+            if(cm_time::millis(now) > timeout) {
+                rx_mutex.unlock();
+                rx_response.signal();
+                CM_LOG_TRACE { cm_log::trace(cm_util::format("%d: timeout wait for response", fd)); }
+                return;
+            }
+        }
+
+        // log response from remote vortex server
+        if(rx_len > 0) {
+
+            CM_LOG_TRACE {
+                cm_log::trace(cm_util::format("%d: received response:", fd));
+                    cm_log::hex_dump(cm_log::level::trace, rx_buffer, rx_sz, 16);
+            }
+
+            clear_rx_buffer(rx_sz);  // set to consumed
+        }
+
+        rx_mutex.unlock();
+        rx_response.signal();
     }
+    else {
+        // data not delivered
+        // to-do: add send queue
+    }
+
 }
 
 //////////////////////////////////// server //////////////////////////////////
@@ -619,7 +625,6 @@ public:
 };
 
 vortex_processor processor;
-int vortex_echo_fd = -1;
 
 void request_handler(void *arg) {
 
