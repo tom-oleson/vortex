@@ -31,14 +31,13 @@
 
 //////////////////////////////////// client //////////////////////////////////
 
-cm_thread::pool *thread_pool_ptr = nullptr;
 
 cm_net::client_thread *client = nullptr;
 bool connected = false;
 int host_port = -1;
+int echo_fd = -1;
 
-// used by server to echo back connected vortex
-//int vortex_echo_fd = -1;
+void server_echo(int fd, const char *buf, size_t sz);
 
 void _sleep(int interval /* ms */) {
 
@@ -53,19 +52,13 @@ void _sleep(int interval /* ms */) {
     nanosleep(&delay, NULL);    // interruptable
 }
 
-void request_handler(void *arg);
-void request_dealloc(void *arg);
-void server_echo(int fd, const char *buf, size_t sz);
-
-
 // network client received data from remote vortex server
 void client_receive(int socket, const char *buf, size_t sz) {
 
     std::string request(buf, sz);
 
     if(request == "$:VORTEX\n") {
-        server_echo(socket, "$:VORTEX_CLIENT\n", 16);
-        return;
+        server_echo(client->get_socket(), "$:VORTEX_CLIENT\n", 16);
     }
 
     CM_LOG_TRACE {
@@ -96,7 +89,7 @@ void server_echo(int fd, const char *buf, size_t sz) {
     }
     else {
         CM_LOG_TRACE {
-            cm_log::trace(cm_util::format("%d: sent request:", fd));
+            cm_log::trace(cm_util::format("%d: echo request:", fd));
             cm_log::hex_dump(cm_log::level::trace, buf, written, 16);
         }
     }
@@ -364,6 +357,10 @@ public:
         // journal first to guard rotation
         journal.info(event.request);
 
+        if(echo_fd != -1) {
+            server_echo(echo_fd, event.request.c_str(), event.request.size());
+        }
+
         cm_store::mem_store.set(name, value);
 
         event.name.assign(name);
@@ -405,6 +402,11 @@ public:
 
             journal.info(event.request);
             int num = cm_store::mem_store.remove(name);
+
+            if(echo_fd != -1) {
+                server_echo(echo_fd, event.request.c_str(), event.request.size());
+            }
+
         }
         else {
             event.result.assign(cm_util::format("NF:%s", name.c_str()));
@@ -418,6 +420,10 @@ public:
 
         // journal first to guard rotation
         journal.info(event.request);
+
+        if(echo_fd != -1) {
+            server_echo(echo_fd, event.request.c_str(), event.request.size());
+        }
 
         int num = cm_store::mem_store.remove(name);
         event.result.assign(cm_util::format("(%d):%s", num, name.c_str()));
@@ -569,10 +575,11 @@ void request_handler(void *arg) {
             CM_LOG_TRACE { cm_log::info(cm_util::format("%d: socket removed from %d watcher(s)", socket, num)); }
         }
 
-        // if(vortex_echo_fd == socket) {
-        //     vortex_echo_fd = -1;
-        //     CM_LOG_TRACE { cm_log::info(cm_util::format("%d: vortex to vortex discontinued", socket)); }
-        // }
+        if(echo_fd == socket) {
+            echo_fd = -1;
+            cm_log::warning(cm_util::format("%d: vortex to vortex discontinued", socket));
+        }
+
         return;
     }
 
@@ -581,24 +588,10 @@ void request_handler(void *arg) {
         cm_log::hex_dump(cm_log::level::trace, request.c_str(), request.size(), 16);
     }
 
-    if(request == "$:VORTEX_CLIENT\n") {
-        CM_LOG_TRACE { cm_log::info(cm_util::format("%d: vortex to vortex established", socket)); }
+    if(echo_fd == -1 && request == "$:VORTEX_CLIENT\n") {
+        echo_fd = socket;
+        cm_log::info(cm_util::format("%d: vortex to vortex established", socket));
         return;
-    }
-
-    // if(vortex_echo_fd == -1 && request == "$:VORTEX_CLIENT\n") {
-    //     vortex_echo_fd = socket;
-    //     CM_LOG_TRACE { cm_log::info(cm_util::format("%d: vortex to vortex established", socket)); }
-    //     return;
-    // }
-
-    // echo to remote vortex server
-    // if(vortex_echo_fd != -1 && socket != vortex_echo_fd) {
-    //     server_echo(vortex_echo_fd, request.c_str(), request.size());
-    // }
-    //else
-    if(nullptr != client && client->is_connected()) {
-        server_echo(client->get_socket(), request.c_str(), request.size());
     }
 
     cm_cache::cache cache(&processor);
@@ -648,7 +641,6 @@ void vortex::run(int port, const std::string &host_name, int _host_port) {
 
     // create thread pool that will do work for the server
     cm_thread::pool thread_pool(6);
-    thread_pool_ptr = &thread_pool;
 
     // startup tcp server
     cm_net::pool_server server(port, &thread_pool, request_handler,
