@@ -663,6 +663,12 @@ void request_handler(void *arg) {
     if(vortex_echo_fd == -1 && request == "$:VORTEX_CLIENT\n") {
         vortex_echo_fd = socket;
         CM_LOG_TRACE { cm_log::info(cm_util::format("%d: vortex to vortex established", socket)); }
+        return;
+    }
+
+    // echo to remote vortex server
+    if(vortex_echo_fd != -1 && socket != vortex_echo_fd) {
+        server_echo(vortex_echo_fd, request.c_str(), request.size());
     }
 
     cm_cache::cache cache(&processor);
@@ -693,11 +699,6 @@ void request_handler(void *arg) {
              timespec delay = {0, 10000000};   // 10 ms
              nanosleep(&delay, NULL);  
          } 
-    }
-
-    // echo to remote vortex server
-    if(vortex_echo_fd != -1) {
-        server_echo(vortex_echo_fd, request.c_str(), request.size());
     }
 }
 
