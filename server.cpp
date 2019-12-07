@@ -53,17 +53,17 @@ void _sleep(int interval /* ms */) {
     nanosleep(&delay, NULL);    // interruptable
 }
 
-cm::mutex rx_mutex;
-cm::mutex tx_mutex;
-cm::cond rx_response;
-char *rx_buffer = nullptr;
-size_t rx_sz = 0;
-size_t rx_len = 0;
+//cm::mutex rx_mutex;
+//cm::mutex tx_mutex;
+//cm::cond rx_response;
+//char *rx_buffer = nullptr;
+//size_t rx_sz = 0;
+//size_t rx_len = 0;
 
-void clear_rx_buffer(size_t sz) {
-    memset(rx_buffer, 0, sz);
-    rx_len = 0;
-}
+// void clear_rx_buffer(size_t sz) {
+//     memset(rx_buffer, 0, sz);
+//     rx_len = 0;
+// }
 
 void request_handler(void *arg);
 void request_dealloc(void *arg);
@@ -90,12 +90,13 @@ void client_receive(int socket, const char *buf, size_t sz) {
     //if(rx_len > 0) {
 
         //std::string request(rx_buffer, rx_len);
+
         std::string request(buf, sz);
 
         if(request == "$:VORTEX\n") {
-            clear_rx_buffer(rx_sz);
-            rx_mutex.unlock();
-            server_echo(client->get_socket(), "$:VORTEX_CLIENT\n", 16);
+            //clear_rx_buffer(rx_sz);
+            //rx_mutex.unlock();
+            server_echo(socket, "$:VORTEX_CLIENT\n", 16);
             return;
         }
 
