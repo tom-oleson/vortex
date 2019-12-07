@@ -58,7 +58,7 @@ void client_receive(int socket, const char *buf, size_t sz) {
     std::string request(buf, sz);
 
     if(request == "$:VORTEX\n") {
-        server_echo(client->get_socket(), "$:VORTEX_CLIENT\n", 16);
+        server_echo(socket, "$:VORTEX_CLIENT\n", 16);
     }
 
     CM_LOG_TRACE {
