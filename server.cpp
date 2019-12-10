@@ -368,11 +368,12 @@ bool filter_fingerprints(const std::string &request, cm_cache::cache_event &even
     index = request.find("%%vortex%%");
     if(index != std::string::npos) {
         size_t end_index = request.find("\n");
-        if(end_index == std::string::npos) {
+        if(end_index != std::string::npos) {
             end_index = request.size() - 1;
         }
 
-        event.fingerprints.assign(request.substr(index+8,end_index));
+        size_t start_index = index + 8;
+        event.fingerprints.assign(request.substr(start_index, end_index - start_index));
         CM_LOG_TRACE {
             cm_log::info(cm_util::format("%d: fingerprints:", event.fd));
             cm_log::hex_dump(cm_log::level::info, event.fingerprints.c_str(),
@@ -381,17 +382,12 @@ bool filter_fingerprints(const std::string &request, cm_cache::cache_event &even
         
         // request stripped of fingerprints
         event.request.assign(request.substr(0, index));
+        event.request.append("\n");
     }
     else {
         // no fingerprints
         // assign event.request
         event.request.assign(request);
-    }
-
-    CM_LOG_TRACE {
-        cm_log::info(cm_util::format("%d: request sans fingerprints:", event.fd));
-        cm_log::hex_dump(cm_log::level::info, event.request.c_str(),
-                 event.request.size(), 16);
     }
 
     return true;
@@ -720,9 +716,12 @@ void request_dealloc(void *arg) {
 
 void vortex::run(int port, const std::string &host_name, int _host_port, const std::string &_instance_name) {
 
-    int n = cm_util::random(999);
-    instance_name = cm_util::format("%s_%d",
+    instance_name = _instance_name;
+    if(instance_name == "vortex") {
+        int n = cm_util::random(999);
+        instance_name = cm_util::format("%s_%d",
          _instance_name.c_str(), n);
+    }
     instance_fingerprint = std::string("%%")+instance_name;
 
     cm_log::info(cm_util::format("instance name: %s", instance_name.c_str()));
