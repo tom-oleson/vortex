@@ -360,7 +360,9 @@ bool filter_fingerprints(const std::string &request, cm_cache::cache_event &even
     // look for our instance fingerprint in request
     size_t index = request.find(instance_fingerprint);
     if(index != std::string::npos) {
-        cm_log::info(cm_util::format("%d: ignoring looped request:", event.fd));
+        CM_LOG_TRACE {
+            cm_log::info(cm_util::format("%d: ignoring looped request", event.fd));
+        }
         // ignore this request
         return false;
     }    
@@ -376,7 +378,7 @@ bool filter_fingerprints(const std::string &request, cm_cache::cache_event &even
         size_t start_index = index + 8;
         event.fingerprints.assign(request.substr(start_index, end_index - start_index));
         CM_LOG_TRACE {
-            cm_log::info(cm_util::format("%d: fingerprints:", event.fd));
+            cm_log::info(cm_util::format("%d: remote fingerprint(s):", event.fd));
             cm_log::hex_dump(cm_log::level::info, event.fingerprints.c_str(),
                  event.fingerprints.size(), 16);
         }
@@ -688,7 +690,7 @@ void request_handler(void *arg) {
         req_event.fd = socket;
         // look for fingerprints in request. if found,
         // remove from request and put them in event.fingerprints
-        // if our fingerprint is in the list, ignore the request
+        // if our own fingerprint is in the list, ignore the request
         if(filter_fingerprints(item, req_event)) {
             cache.eval(req_event.request, req_event);
         }
