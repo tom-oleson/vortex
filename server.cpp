@@ -360,6 +360,7 @@ bool filter_fingerprints(const std::string &request, cm_cache::cache_event &even
     // look for our instance fingerprint in request
     size_t index = request.find(instance_fingerprint);
     if(index != std::string::npos) {
+        cm_log::info(cm_util::format("%d: ignoring looped request:", event.fd));
         // ignore this request
         return false;
     }    
