@@ -371,7 +371,7 @@ bool filter_fingerprints(const std::string &request, cm_cache::cache_event &even
     index = request.find("%%vortex%%");
     if(index != std::string::npos) {
         size_t end_index = request.find("\n");
-        if(end_index != std::string::npos) {
+        if(end_index == std::string::npos) {
             end_index = request.size() - 1;
         }
 
