@@ -90,7 +90,7 @@ public:
 };
 
 
-void run(int port, const std::string &host_name, int _host_port);
+void run(int port, const std::string &host_name, int _host_port, const std::string &instance_name);
 
 }
 

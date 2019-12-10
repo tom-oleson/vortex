@@ -38,6 +38,12 @@ bool connected = false;
 int host_port = -1;
 int echo_fd = -1;
 
+// instance name for fingerprint (e.g., vortex_369)
+std::string instance_name;
+
+// instance fingerprint (e.g., %%vortex_369)
+std::string instance_fingerprint;
+
 void server_echo(int fd, const char *buf, size_t sz);
 void request_handler(void *arg);
 void request_dealloc(void *arg);
@@ -200,7 +206,7 @@ bool loop_analysis(std::vector<std::pair<std::string, std::string>> &input) {
     return found_loop == false;
 }
 
-// when notify has a watcher with a re-pub key, it will put the publish
+// when notify has a watcher with a pub key, it will put the publish
 // request in this queue
 cm_queue::double_queue<std::string> pub_queue;
 
@@ -349,6 +355,68 @@ public:
     }
 };
 
+bool filter_fingerprints(const std::string &request, cm_cache::cache_event &event) {
+
+    // look for our instance fingerprint in request
+    size_t index = request.find(instance_fingerprint);
+    if(index != std::string::npos) {
+        // ignore this request
+        return false;
+    }    
+
+    // look for start of fingerprint(s)
+    index = request.find("%%vortex%%");
+    if(index != std::string::npos) {
+        size_t end_index = request.find("\n");
+        if(end_index == std::string::npos) {
+            end_index = request.size() - 1;
+        }
+
+        event.fingerprints.assign(request.substr(index+8,end_index));
+        CM_LOG_TRACE {
+            cm_log::info(cm_util::format("%d: fingerprints:", event.fd));
+            cm_log::hex_dump(cm_log::level::info, event.fingerprints.c_str(),
+                 event.fingerprints.size(), 16);
+        }
+        
+        // request stripped of fingerprints
+        event.request.assign(request.substr(0, index));
+    }
+    else {
+        // no fingerprints
+        // assign event.request
+        event.request.assign(request);
+    }
+
+    CM_LOG_TRACE {
+        cm_log::info(cm_util::format("%d: request sans fingerprints:", event.fd));
+        cm_log::hex_dump(cm_log::level::info, event.request.c_str(),
+                 event.request.size(), 16);
+    }
+
+    return true;
+}
+
+void fingerprint(std::string &request, cm_cache::cache_event &event) {
+    // add fingerprints to request
+
+    std::string s("%%vortex");
+    s.append(event.fingerprints);
+    s.append(instance_fingerprint);
+    s.append("\n");
+
+    size_t index = request.find("\n");
+    if(index != std::string::npos) {
+        request.replace(request.begin()+index, request.begin()+index+1,
+            s.begin(), s.end());
+    }
+    else {    
+        request.append(s);
+    }
+}
+
+
+
 watcher_store watchers;
 
 class vortex_processor: public cm_cache::scanner_processor {
@@ -362,6 +430,7 @@ public:
         journal.info(event.request);
 
         if(echo_fd != -1) {
+            fingerprint(event.request, event);
             server_echo(echo_fd, event.request.c_str(), event.request.size());
         }
 
@@ -408,6 +477,7 @@ public:
             int num = cm_store::mem_store.remove(name);
 
             if(echo_fd != -1) {
+                fingerprint(event.request, event);
                 server_echo(echo_fd, event.request.c_str(), event.request.size());
             }
 
@@ -426,6 +496,7 @@ public:
         journal.info(event.request);
 
         if(echo_fd != -1) {
+            fingerprint(event.request, event);
             server_echo(echo_fd, event.request.c_str(), event.request.size());
         }
 
@@ -618,8 +689,12 @@ void request_handler(void *arg) {
         item.append("\n");
         req_event.clear();
         req_event.fd = socket;
-        req_event.request.assign(item);
-        cache.eval(item, req_event);
+        // look for fingerprints in request. if found,
+        // remove from request and put them in event.fingerprints
+        // if our fingerprint is in the list, ignore the request
+        if(filter_fingerprints(item, req_event)) {
+            cache.eval(req_event.request, req_event);
+        }
     }
 
     // process any publish requests generated in notify
@@ -643,10 +718,17 @@ void request_dealloc(void *arg) {
     delete (cm_net::input_event *) arg;
 }
 
-void vortex::run(int port, const std::string &host_name, int _host_port) {
+void vortex::run(int port, const std::string &host_name, int _host_port, const std::string &_instance_name) {
+
+    int n = cm_util::random(999);
+    instance_name = cm_util::format("%s_%d",
+         _instance_name.c_str(), n);
+    instance_fingerprint = std::string("%%")+instance_name;
+
+    cm_log::info(cm_util::format("instance name: %s", instance_name.c_str()));
 
     if(_host_port != -1) {
-    host_port = _host_port;
+        host_port = _host_port;
         cm_log::info(cm_util::format("remote vortex server: %s:%d", host_name.c_str(), host_port));
     }
 
