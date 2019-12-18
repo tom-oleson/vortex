@@ -68,4 +68,4 @@ clean:
 all: clean prod
 
 prod: $(EXE)
-	export LD_LIBRARY_PATH=$(CM_LIB_DIR)/lib:$(LD_LIBRARY_PATH);$(PWD)/$(EXE)
+	export LD_LIBRARY_PATH=$(CM_LIB_DIR)/lib:$(LD_LIBRARY_PATH);$(PWD)/$(EXE) -nvt001
