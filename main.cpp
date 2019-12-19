@@ -49,7 +49,8 @@ void usage(int argc, char *argv[]) {
     printf("usage: %s [-p<port>] [-l<level>] [-i<interval>] [-k<keep>] [-c host:port] [-v]\n", argv[0]);
     puts("");
     puts("-p port       Listen on port");
-    puts("-l level      Log level");
+    puts("-l level      Log level (default 8=trace)");
+    puts("-L level      Console log level (default 0=off)");
     puts("-i interval   Cache rotation interval");
     puts("-k keep       Number of journal logs to keep in rotation");
     puts("-c host:port  Connect to host and port");
@@ -66,6 +67,7 @@ int main(int argc, char *argv[]) {
     int opt;
     int port = 54000;
     int log_lvl = (cm_log::level::en) cm_log::level::trace;
+    int console_lvl = (cm_log::level::en) cm_log::level::off;
     bool version = false;
     int interval = 0;
     int keep = 0;
@@ -75,7 +77,7 @@ int main(int argc, char *argv[]) {
 
     std::vector<std::string> v;
 
-    while((opt = getopt(argc, argv, "hl:p:i:k:c:n:v")) != -1) {
+    while((opt = getopt(argc, argv, "hl:L:p:i:k:c:n:v")) != -1) {
         switch(opt) {
             case 'p':
                 port = atoi(optarg);
@@ -101,6 +103,10 @@ int main(int argc, char *argv[]) {
                 log_lvl = atoi(optarg);
                 break;
 
+            case 'L':
+                console_lvl = atoi(optarg);
+                break;
+
             case 'i':
                 interval = atoi(optarg);
                 break;
@@ -111,12 +117,12 @@ int main(int argc, char *argv[]) {
 
             case 'h':
             default:
-                printf("usage: %s [-p<port>] [-l<level>] [-i<interval>] [-k<keep>] [-c host:port] [-n name] [-v]\n", argv[0]);
+                printf("usage: %s [-p<port>] [-l<level>] [-L<level>] [-i<interval>] [-k<keep>] [-c host:port] [-n name] [-v]\n", argv[0]);
                 exit(0);
         }
     }
 
-    vortex::init_logs((cm_log::level::en) log_lvl, interval, keep);
+    vortex::init_logs((cm_log::level::en) log_lvl, interval, keep, (cm_log::level::en) console_lvl);
     cm_log::always(cm_util::format("VORTEX %s build: %s %s", VERSION ,__DATE__,__TIME__));
     
     vortex::init_storage();

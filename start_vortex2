@@ -1,4 +1,4 @@
 #!/bin/sh
 export LD_LIBRARY_PATH=../../common/lib
-./vortex -p56000 -c192.168.1.22:54000 -nv002
+./vortex -p56000 -c192.168.1.22:54000 -nv002 -L8
 

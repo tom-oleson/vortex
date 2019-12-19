@@ -36,9 +36,9 @@ cm_log::rolling_file_logger
 vortex::journal_logger
     journal("./journal/", "data", ".log", ((24 * 60) * 60) /*seconds*/, 6 /* retain # */);
 
-void vortex::init_logs(cm_log::level::en lvl, int interval, int keep) {
+void vortex::init_logs(cm_log::level::en lvl, int interval, int keep, cm_log::level::en console_lvl) {
 
-    cm_log::console.set_log_level(lvl);
+    cm_log::console.set_log_level(console_lvl);
     cm_log::console.set_date_time_format("%m/%d/%Y %H:%M:%S");
     cm_log::console.set_message_format("${date_time} [${lvl}]: ${msg}");
     cm_log::console.set_color_enable(true);

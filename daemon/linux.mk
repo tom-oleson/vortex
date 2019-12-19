@@ -10,10 +10,10 @@
 #   * Redistributions in binary form must reproduce the above copyright
 #     notice, this list of conditions and the following disclaimer in the
 #     documentation and/or other materials provided with the distribution.
-#   * Neither the name of Redis nor the names of its contributors may be used
-#     to endorse or promote products derived from this software without
-#     specific prior written permission.
-#
+#   * The names of its contributors may NOT be used to endorse or promote
+#     products derived from this software without specific prior written
+#     permission.
+# 
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 # AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 # IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -26,47 +26,23 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 #
-#
-
-include ./version.mk
 
 TOP=$(PWD)
-WORD_SIZE=32
+PROD=vortex
+PROD_DIR=/opt/vortex
+CM_LIB_DIR=~/common/lib
 
-EXE = vortex
-
-OBJS = \
-	main.o \
-	storage.o \
-	server.o \
-	logger.o
-    
 default: all
 
-CC=g++
-CM_LIB_DIR=../../common
-INCLUDE = -I. -I$(CM_LIB_DIR)/include
-#LDFLAGS = -m$(WORD_SIZE) -g -lcm_$(WORD_SIZE) -ldl -pthread -lssl -lcrypto -L$(CM_LIB_DIR)/lib
-LDFLAGS = -m$(WORD_SIZE) -g -Wl,-Bstatic -lcm_$(WORD_SIZE) -Wl,-Bdynamic -pthread -lssl -lcrypto -L$(CM_LIB_DIR)/lib
-CCFLAGS = -m$(WORD_SIZE) -g $(INCLUDE) -c -fPIC -D__LINUX_BOX__ -D_REENTRANT -D_LARGEFILE$(WORD_SIZE)_SOURCE -DVERSION=\"$(CM_VERSION)\"
+all: install
 
-POSIXFLAGS = -D_POSIX_PTHREAD_SEMANTICS -D_REENTRANT
-
-%.o: %.cpp
-	$(CC) $(CCFLAGS) $(POSIXFLAGS) $<
-
-log:
-	-@mkdir log
-	-@mkdir journal
-
-$(EXE): $(OBJS) log
-	$(CC) $(OBJS) $(LDFLAGS) -o $(EXE)
-
-clean:
-	-@rm -rf *.o $(EXE) core.*
-	@echo "$(EXE) $(@)ed"
-
-all: clean prod
-
-prod: $(EXE)
-	export LD_LIBRARY_PATH=$(CM_LIB_DIR)/lib:$(LD_LIBRARY_PATH);$(PWD)/$(EXE) -nvt001 -L8
+install:
+	@mkdir -p $(PROD_DIR)
+	@cp -f vortexd /etc/init.d
+	@cp -f ../vortex $(PROD_DIR)
+	@chmod +x $(PROD_DIR)/vortex
+	@chmod +x /etc/init.d/vortexd -v
+	@sudo update-rc.d vortexd defaults
+	@echo "$(PROD_DIR) $(@)ed" 
+	@echo "$(PROD) $(@)ed" 
+	
