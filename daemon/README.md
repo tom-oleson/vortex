@@ -14,7 +14,7 @@
 
 
 # vortexd
-Runs vortex as a daemom
+Runs vortex as a daemon
 
 
 To install, execute:
@@ -22,7 +22,7 @@ To install, execute:
 sudo make -f linux.mk
 </pre>
 
-This will install vortexd to /etc/init.d and copy vortex into /opt/vortex
+This will install the vortexd script to /etc/init.d and copy vortex into /opt/vortex
 
 NOTE: The make file assumes that vortex is up one directory and has already
 been built using its own make file.
@@ -36,7 +36,6 @@ sudo /etc/init.d/vortexd force-reload
 </pre>
 
 NOTE:
-Configure vortex command line options in vortexd script.
+1. Configure vortex command line options in vortexd script.
+2. The default log level for vortex.log is "trace" (very verbose). See vortex -h for other log levels.
 
-Default build has:
--l8     (log level: trace)

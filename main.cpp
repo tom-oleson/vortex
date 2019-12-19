@@ -46,17 +46,25 @@ R"(        \______/)""\n";
 
 
 void usage(int argc, char *argv[]) {
-    printf("usage: %s [-p<port>] [-l<level>] [-i<interval>] [-k<keep>] [-c host:port] [-v]\n", argv[0]);
+    printf("usage: %s [-p<port>] [-l<level>] [-L<level>] [-i<interval>] [-k<keep>] [-c <host>:<port>] [-v]\n", argv[0]);
     puts("");
     puts("-p port       Listen on port");
-    puts("-l level      Log level (default 8=trace");
-    puts("              Levels: 0=off,1=always,2=fatal,3=critical,4=error,5=warning,6=info,7=debug,8=trace");
+    puts("-l level      Log level (default 8=trace)");
+    puts("              Levels: 0=off");
+    puts("                      1=always");
+    puts("                      2=fatal");
+    puts("                      3=critical");
+    puts("                      4=error");
+    puts("                      5=warning");
+    puts("                      6=info");
+    puts("                      7=debug");
+    puts("                      8=trace");
     puts("-L level      Console log level (default 0=off)");
     puts("-i interval   Cache rotation interval");
     puts("-k keep       Number of journal logs to keep in rotation");
     puts("-c host:port  Connect to host and port");
     puts("-n name       Name for this instance");
-    puts("-v            Output version/build info to console");
+    puts("-v            Output version/build info to console and exit");
     puts("");
 }
 
@@ -118,7 +126,7 @@ int main(int argc, char *argv[]) {
 
             case 'h':
             default:
-                printf("usage: %s [-p<port>] [-l<level>] [-L<level>] [-i<interval>] [-k<keep>] [-c host:port] [-n name] [-v]\n", argv[0]);
+                usage(argc, argv);
                 exit(0);
         }
     }
@@ -126,6 +134,8 @@ int main(int argc, char *argv[]) {
     vortex::init_logs((cm_log::level::en) log_lvl, interval, keep, (cm_log::level::en) console_lvl);
     cm_log::always(cm_util::format("VORTEX %s build: %s %s", VERSION ,__DATE__,__TIME__));
     
+    if(version) exit(0);
+
     vortex::init_storage();
     vortex::run(port, host_name, host_port, instance_name);
 
