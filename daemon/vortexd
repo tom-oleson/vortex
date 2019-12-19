@@ -1,7 +1,7 @@
 #!/bin/sh
 
 ### BEGIN INIT INFO
-# Provides:          vortex
+# Provides:          vortexd
 # Required-Start:    $remote_fs $syslog
 # Required-Stop:     $remote_fs $syslog
 # Default-Start:     2 3 4 5
@@ -10,18 +10,20 @@
 # Description:       Put a long description of the service here
 ### END INIT INFO
 
-NAME=vortex_stats
-DESC="Stats to VORTEX"
+NAME=vortexd
+DESC="VORTEX service"
 PIDFILE="/var/run/${NAME}.pid"
 LOGFILE="/var/log/${NAME}.log"
 
 # bin path
-DAEMON="/opt/vortex/stats.sh"
+VORTEX_DIR="/opt/vortex"
+DAEMON="/opt/vortex/vortex"
 
-# Path the script
+# Daemon arguments
+#DAEMON_OPTS="-c192.168.1.22:54000 -nv002"
 DAEMON_OPTS=""
 
-START_OPTS="--start --background --make-pidfile --pidfile ${PIDFILE} --exec ${DAEMON} ${DAEMON_OPTS}"
+START_OPTS="--start --background --make-pidfile --pidfile ${PIDFILE} --chdir ${VORTEX_DIR} --exec ${DAEMON} -- ${DAEMON_OPTS}"
 STOP_OPTS="--stop --pidfile ${PIDFILE}"
 
 # does exec exit?

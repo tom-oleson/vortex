@@ -30,7 +30,6 @@
 TOP=$(PWD)
 PROD=vortex
 PROD_DIR=/opt/vortex
-CM_LIB_DIR=~/common/lib
 
 default: all
 
@@ -38,6 +37,8 @@ all: install
 
 install:
 	@mkdir -p $(PROD_DIR)
+	@mkdir -p $(PROD_DIR)/log
+	@mkdir -p $(PROD_DIR)/journal
 	@cp -f vortexd /etc/init.d
 	@cp -f ../vortex $(PROD_DIR)
 	@chmod +x $(PROD_DIR)/vortex

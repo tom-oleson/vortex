@@ -49,7 +49,8 @@ void usage(int argc, char *argv[]) {
     printf("usage: %s [-p<port>] [-l<level>] [-i<interval>] [-k<keep>] [-c host:port] [-v]\n", argv[0]);
     puts("");
     puts("-p port       Listen on port");
-    puts("-l level      Log level (default 8=trace)");
+    puts("-l level      Log level (default 8=trace");
+    puts("              Levels: 0=off,1=always,2=fatal,3=critical,4=error,5=warning,6=info,7=debug,8=trace");
     puts("-L level      Console log level (default 0=off)");
     puts("-i interval   Cache rotation interval");
     puts("-k keep       Number of journal logs to keep in rotation");
